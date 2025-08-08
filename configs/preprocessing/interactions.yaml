@@ -1,0 +1,31 @@
+# User interaction processing configurations
+
+# Core interaction settings
+interaction_processing:
+  remove_self_replies: true
+  default_confidence: 0.05
+
+# Label processing
+label_handling:
+  source: "shared" # Reference to core/shared.yaml labels
+  use_confidence_scores: true
+  confidence_threshold: 0.00
+
+# Interaction pair generation
+pair_generation:
+  include_neutral: true
+  # include_cross_subreddit: false  # Future support
+  min_interaction_count: 1
+
+  # Different pair types to generate
+  variants:
+    pairs_all: true # All interactions
+    pairs_all_global: false # All interactions across subreddits
+    pairs_agree: false # Only agreement interactions
+    pairs_agree_global: false # Only agreement interactions across subreddits
+
+# Filtering and validation
+filtering:
+  min_comment_length: 5 # Minimum characters
+  max_comment_length: 10000 # Maximum characters
+

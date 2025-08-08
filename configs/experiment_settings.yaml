@@ -1,0 +1,62 @@
+text_embedder:
+  model_type: "sbert"
+  model_name: "all-MiniLM-L6-v2"
+
+# Labels mapping
+labels:
+  0: "disagree"
+  1: "neutral"
+  2: "agree"
+
+# Subreddit ID mappings
+subreddit_ids:
+  blacklivesmatter: 1
+  brexit: 0
+  climate: 2
+  democrats: 3
+  republican: 4
+
+# Interaction settings
+interactions:
+  remove_self_replies: true
+  labels:
+    0: "disagree"
+    1: "neutral"
+    2: "agree"
+
+# Window size configuration (days per timestep)
+temporal:
+  window_size_days: 178   # Semi-annual window size
+  delta_minutes: 30       # For parent comment timestamp inference
+# Alternative: subreddit-specific window sizes
+# window_size_days:
+#   brexit: 60
+#   republican: 30
+#   climate: 90
+#   blacklivesmatter: 14
+#   democrats: 30
+
+# Graph construction settings
+graph_configs:
+  node:
+    embeddings:
+      - comments
+    pooling: mean
+  edge:
+    attributes:
+      - mean_confidence
+      - net_vector
+
+
+# Preprocessing settings
+preprocessing:
+  remove_self_replies: true
+
+# Subreddit topic extraction settings
+topic_extraction:
+  enabled: true
+  min_topics_per_group: 5
+  max_topics_per_group: 20
+  max_total_topics: 100
+  openai_temperature: 0.1
+  use_hierarchical: true

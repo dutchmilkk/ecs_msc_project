@@ -1,0 +1,56 @@
+# Core shared constants and mappings
+# Used across multiple components in the pipeline
+
+metadata:
+  version: "1.0"
+  description: "Core constants for reddit debate analysis"
+
+# Stance labels mapping
+labels:
+  stance:
+    0: "disagree"
+    1: "neutral"
+    2: "agree"
+
+  # Additional confidence levels if needed
+  confidence:
+    low: 0.0
+    medium: 0.5
+    high: 1.0
+
+# Subreddit information and mappings
+subreddits:
+  brexit:
+    id: 0
+    domain: "politics"
+    description: "Brexit-related discussions"
+  blacklivesmatter:
+    id: 1
+    domain: "social"
+    description: "Black Lives Matter movement discussions"
+  climate:
+    id: 2
+    domain: "environmental"
+    description: "Climate change discussions"
+  democrats:
+    id: 3
+    domain: "politics"
+    description: "Democratic party discussions"
+  republican:
+    id: 4
+    domain: "politics"
+    description: "Republican party discussions"
+
+# For backwards compatibility - flat structure
+subreddit_ids:
+  brexit: 0
+  blacklivesmatter: 1
+  climate: 2
+  democrats: 3
+  republican: 4
+
+# Default values used across components
+defaults:
+  confidence_threshold: 0.05
+  cache_enabled: true
+  random_seed: 42

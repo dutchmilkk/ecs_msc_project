@@ -1,0 +1,29 @@
+# Temporal processing and time window configurations
+
+# Primary time window strategy
+window_strategy: "fixed" # Options: "fixed", "adaptive", "subreddit_specific"
+window_size_days: 178 # Semi-annual window size (default)
+
+# Time-related parameters
+temporal_params:
+  delta_minutes: 30 # For parent comment timestamp inference
+  timezone: "UTC" # Timezone for timestamp processing
+
+# Subreddit-specific window sizes (when window_strategy = "subreddit_specific")
+# custom_windows:
+#   brexit: 60
+#   republican: 30
+#   climate: 90
+#   blacklivesmatter: 14
+#   democrats: 30
+
+# Binning and discretization settings
+binning:
+  method: "fixed_interval" # Options: "fixed_interval", "quantile", "custom"
+  overlap_allowed: false
+
+# Validation and filtering
+validation:
+  min_comments_per_window: 10
+  max_window_size_days: 178 # Half-year window size
+  require_parent_timestamps: true

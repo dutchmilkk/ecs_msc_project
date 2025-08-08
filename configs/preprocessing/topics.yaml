@@ -1,0 +1,64 @@
+# Topic extraction and submission processing configurations
+
+# Topic extraction settings
+topic_extraction:
+  enabled: true
+
+  # Description of the content context for better OpenAI topic labeling
+  context_description: >-
+    political and social media discussions on Reddit 
+    about specific events, policies, controversies, and current affairs. 
+    Each topic should have a UNIQUE and SPECIFIC name that distinguishes 
+    it from other topics in the same group
+
+  # Topic generation parameters
+  generation:
+    min_topics_per_group: 5
+    max_topics_per_group: 20
+    max_total_topics: 100 # Global limit across all groups
+
+  # OpenAI API settings
+  openai_api_settings:
+    # Randomness in topic label generation (0.0=deterministic, 2.0=very random)
+    temperature: 0.2
+    model: "gpt-3.5-turbo" # Options: "gpt-3.5-turbo", "gpt-4"
+    max_tokens: 1000 # For topic description response length
+    retry_attempts: 3
+    timeout_seconds: 30
+
+  # Topic processing strategy
+  strategy:
+    # Clustering algorithm type: hierarchical clustering vs flat clustering
+    # - true: Use hierarchical clustering (better topic quality, slower)
+    # - false: Use flat clustering (faster, may miss topic relationships)
+    use_hierarchical: true
+
+    # Grouping strategy for topic extraction - determines scope of topic modeling
+    # Options: "subreddit", "timestep", "subreddit_timestep", "global"
+    # - "subreddit": Extract topics separately per subreddit (preserves community context)
+    # - "timestep": Extract topics separately per time period (temporal topics)
+    # - "subreddit_timestep": Extract topics per subreddit AND timestep (most granular)
+    # - "global": Extract topics across all data (may lose local context)
+    group_by: "subreddit"
+
+    # Post-processing: merge topics that are highly similar across groups
+    # Helps reduce redundant topics when same discussions appear in multiple groups
+    merge_similar_topics: true
+
+    # Similarity threshold for merging topics (0.0-1.0, higher = more strict)
+    # 0.8 means topics must be 80% similar to be merged
+    similarity_threshold: 0.8
+
+# Caching specific to topics
+topic_caching:
+  cache_raw_topics: true
+  cache_processed_topics: true
+  reuse_existing: true
+  force_refresh: false
+
+# Quality control
+quality_control:
+  min_topic_quality_score: 0.5
+  remove_generic_topics: true
+  generic_keywords: ["discussion", "general", "misc", "other"]
+  min_text_length: 10

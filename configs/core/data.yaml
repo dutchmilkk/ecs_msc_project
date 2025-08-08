@@ -1,0 +1,25 @@
+# Data handling and I/O configurations
+
+paths:
+  raw_data: "data/raw/deb_label.csv"
+  cache_dir: "data/cache"
+  # output_dir: "data/processed"
+
+caching:
+  enabled: true
+  cache_embeddings: true
+  cache_interactions: true
+  cache_topics: true
+
+  # Cache file names
+  files:
+    comments: "comments.pkl"
+    submissions_topics: "submissions_topics.pkl"
+    pyg_data: "pyg_data_list.pt"
+
+# Data loading and processing settings
+data_processing:
+  low_memory: false
+  chunk_size: null # Set to number for chunked processing
+  parallel_processing: false
+  n_workers: 1

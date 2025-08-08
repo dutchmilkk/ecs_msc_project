@@ -1,0 +1,82 @@
+# Data Loading and Cleaning Configuration
+# Configuration for the DataLoader module in src_new/data/preprocessing/data_loader.py
+
+# File paths configuration
+paths:
+  raw_data: "data/raw/deb_label.csv"
+  cache_dir: "data/cache"
+  output_dir: "data/processed"
+
+# Data validation settings
+validation:
+  # Required columns that must be present in the raw data
+  required_columns:
+    - "subreddit"
+    - "label"
+    - "author_child"
+    - "author_parent"
+    - "msg_id_child"
+    - "msg_id_parent"
+    - "body_child"
+    - "body_parent"
+    - "datetime"
+
+  # Maximum allowed ratio of missing data per column (0.1 = 10%)
+  max_missing_ratio: 0.1
+
+  # Whether to raise errors for validation failures
+  strict_validation: false
+
+# Data cleaning configuration
+cleaning:
+  # Whether to normalize subreddit names to lowercase and map to IDs
+  normalize_subreddits: true
+  standardize_timestamps: true
+
+  # Whether to add derived columns (is_self_reply, text_length, etc.)
+  add_derived_columns: true
+  remove_duplicates: false
+  handle_missing_values: false
+
+# Column standardization
+column_mapping:
+  author_child: "src_author"
+  author_parent: "dst_author"
+  msg_id_child: "src_comment_id"
+  msg_id_parent: "dst_comment_id"
+  body_child: "src_comment_text"
+  body_parent: "dst_comment_text"
+  datetime: "timestamp"
+
+# Timestamp parsing configuration
+timestamp_parsing:
+  primary_format: "%d/%m/%Y %H:%M"
+  dayfirst: true
+  error_handling: "coerce"
+  fallback_formats:
+    - "%Y-%m-%d %H:%M:%S"
+    - "%m/%d/%Y %H:%M"
+    - "%Y-%m-%d"
+
+# Derived columns configuration
+derived_columns:
+  # Text-based derived columns
+  text_features:
+    enabled: true
+    include_length: true
+    include_word_count: false
+
+  # Temporal derived columns
+  temporal_features:
+    enabled: true
+    include_year: true
+    include_month: true
+    include_day_of_week: true
+    include_hour: true
+    include_quarter: false
+
+  # Interaction-based derived columns
+  interaction_features:
+    enabled: true
+    include_self_reply: true
+    include_reply_depth: false

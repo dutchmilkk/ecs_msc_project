@@ -1,0 +1,34 @@
+# Text embedding configurations
+
+# Primary embedder settings
+text_embedder:
+  model_type: "sbert" # Options: "sbert", "openai"
+  model_settings:
+    sbert:
+      model_name: "all-MiniLM-L6-v2" # Options: "all-MiniLM-L6-v2", "all-mpnet-base-v2", "all-distilroberta-v1"
+      device: "auto" # "auto", "cuda", "cpu"
+      batch_size: 100
+      normalize_embeddings: true
+
+    openai:
+      model_name: "text-embedding-3-small" # Options: "text-embedding-ada-002", "text-embedding-3-small", "text-embedding-3-large"
+      batch_size: 100
+      dimensions: 1536
+
+# Embedding processing
+processing:
+  pooling_strategy: "mean" # Options: "mean", "max", "min", "sum"
+  dimension_reduction: null # null, "pca", "umap"
+  target_dimensions: null # Set for dimension reduction
+
+# Caching and performance
+performance:
+  cache_embeddings: true
+  use_gpu_if_available: true
+  fp16_precision: false # Use half precision for speed
+
+# Quality control
+quality:
+  min_embedding_norm: 0.01
+  max_embedding_norm: 10.0
+  check_nan_values: true

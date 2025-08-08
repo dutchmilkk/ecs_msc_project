@@ -1,0 +1,24 @@
+# Graph construction and structure configurations
+
+# Graph construction strategy
+construction:
+  directed: true # Create directed graphs
+  allow_self_loops: false # Remove self-connections
+  # remove_isolated_nodes: true
+
+# Node feature configuration
+node_features:
+  embeddings:
+    - comments # Use comment embeddings
+    # - user_profile        # Future: user-level features
+    # - temporal            # Future: temporal features
+
+  pooling: mean # Options: "mean", "max", "sum", "attention"
+
+# Edge feature configuration
+edge_features:
+  attributes:
+    - mean_confidence # Average confidence of interactions
+    - net_vector # Net stance direction
+    # - temporal_weight     # Future: time-based edge weights
+    # - interaction_count   # Future: number of interactions
