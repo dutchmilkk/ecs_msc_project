@@ -1,0 +1,13 @@
+
+construction:
+  directed: true
+  use_wcc: true
+  allow_self_loops: false
+
+node_features:
+  pooling: "mean"  
+
+edge_features:
+  attributes:
+    - mean_confidence
+    - net_vector

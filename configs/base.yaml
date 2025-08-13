@@ -1,0 +1,92 @@
+# Paths
+paths:
+  raw: "data/raw/deb_label.csv"
+  processed: "data/processed"
+
+# Labels mapping
+labels:
+  0: "disagree"
+  1: "neutral"
+  2: "agree"
+
+# Subreddit ID mappings
+subreddits:
+  brexit: 0
+  blacklivesmatter: 1
+  climate: 2
+  democrats: 3
+  republican: 4
+
+# Required columns from raw data
+required_columns:
+  - label
+  - msg_id_parent
+  - msg_id_child
+  - submission_id
+  - body_parent
+  - body_child
+  - submission_text
+  - subreddit
+  - author_parent
+  - author_child
+  - datetime
+  - agreement_fraction
+  - individual_kappa
+
+# Data Cleaning
+cleaning:
+  normalize_subreddits: true
+  rename_columns:
+    author_child: "src_author"
+    author_parent: "dst_author"
+    msg_id_child: "src_comment_id"
+    msg_id_parent: "dst_comment_id"
+    body_child: "src_comment_text"
+    body_parent: "dst_comment_text"
+    datetime: "timestamp"
+  timestamp_parsing:
+    primary_format: "%d/%m/%Y %H:%M"
+    dayfirst: true
+    error_handling: "coerce"
+    fallback_formats:
+      - "%Y-%m-%d %H:%M:%S"
+      - "%m/%d/%Y %H:%M"
+      - "%Y-%m-%d"
+  remove_self_replies: true
+
+# Temporal Processing for Comments
+temporal:
+  infer_parent_comment_time:
+    enabled: true
+    reference_strategy: "child_comment" # Since submission also doesn't have timestamp
+    delta_minutes: 30
+
+  windowing:
+    enabled: true
+    strategy: "custom_subreddit" # Option: fixed, custom_subreddit
+    fixed_windows:
+      size: 120
+    custom_subreddit_windows:
+      brexit: 60
+      blacklivesmatter: 30
+      climate: 90
+      democrats: 60
+      republican: 60
+    merge_small_windows:
+      enabled: true
+      min_comments_per_window: 100
+
+# Text embedding
+text_embedding:
+  comments: true
+  submissions: true
+  model:
+    type: "sentence-transformers"
+    name: "all-MiniLM-L6-v2"
+    max_length: 512
+    batch_size: 128
+
+# Default values
+default_values:
+  confidence: 0.05
+

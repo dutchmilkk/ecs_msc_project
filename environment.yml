@@ -1,0 +1,42 @@
+name: debate_gnn
+channels:
+  - pytorch
+  - pyg
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.10
+
+  # Core ML and Deep Learning
+  - pytorch>=2.0.0
+  - pytorch-geometric>=2.6.0
+  - cudatoolkit=11.8 # Adjust based on your CUDA version
+
+  # Data Processing
+  - numpy>=1.21.0
+  - pandas>=1.3.0
+  - networkx>=2.6.0
+
+  # Visualization
+  - matplotlib>=3.5.0
+  - seaborn>=0.11.0
+
+  # Configuration and Utilities
+  - pyyaml>=6.0
+  - tqdm>=4.62.0
+
+  # Machine Learning
+  - scikit-learn>=1.0.0
+
+  # Development and Jupyter
+  - jupyter>=1.0.0
+  - notebook>=6.4.0
+
+  # Additional utilities
+  - scipy>=1.7.0
+
+  # Pip dependencies (if not available via conda)
+  - pip
+  - pip:
+      - plotly>=5.0.0
