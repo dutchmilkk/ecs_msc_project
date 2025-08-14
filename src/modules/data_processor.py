@@ -463,10 +463,9 @@ class DataProcessor:
             '# Unique Comments': n_unique_comments,
             '# Unique Authors': n_unique_authors
         })
-        print(f"Basic reply statistics (filtered self-replies):")
         display(pd.DataFrame(stats))
 
-    def print_subreddit_timestep_info(df: pd.DataFrame, count_info: str = "replies"):
+    def print_subreddit_timestep_info(self, df: pd.DataFrame, count_info: str = "replies"):
         for sid, group in df.groupby('subreddit'):
             print(f"Subreddit: {sid} ({count_info})")
             df_sub = group.groupby(['timestep', 'interval', 'actual_window_size']).size().reset_index(name='total_count')
@@ -482,7 +481,15 @@ class DataProcessor:
             display(df_sub)
     
     # Main processor function
-    def process_data(self, raw_data: pd.DataFrame | None = None, device=None, summarize=True) -> ProcessedData:
+    def run(self, raw_data: pd.DataFrame | None = None, device=None, summarize=True) -> ProcessedData:
+        def _summarize():
+            print("Basic reply statistics (filtered self-replies):")
+            self.print_basic_reply_statistics(replies)
+            print("Subreddit timestep info for replies:")
+            self.print_subreddit_timestep_info(replies, count_info="replies")
+            print("Subreddit timestep info for comments:")
+            self.print_subreddit_timestep_info(comments, count_info="comments")
+            
         if raw_data is None:
             raw_data = pd.read_csv(self.raw_path)
         else:
@@ -503,6 +510,11 @@ class DataProcessor:
             replies = pd.read_pickle(os.path.join(self.processed_path, 'replies.pkl'))
             user_pairs = pd.read_pickle(os.path.join(self.processed_path, 'user_pairs.pkl'))
             submissions = pd.read_pickle(os.path.join(self.processed_path, 'submissions.pkl'))
+
+            # Summarize
+            if summarize:
+                _summarize()
+            
             return ProcessedData(comments, replies, user_pairs, submissions)
 
         print("Begin Data Processing...")
@@ -540,11 +552,6 @@ class DataProcessor:
         print(f"Saved processed submissions data to {self.processed_path}/submissions.pkl")
 
         if summarize:
-            print("Basic reply statistics (filtered self-replies):")
-            self.print_basic_reply_statistics(replies)
-            print("Subreddit timestep info for replies:")
-            self.print_subreddit_timestep_info(replies, count_info="replies")
-            print("Subreddit timestep info for comments:")
-            self.print_subreddit_timestep_info(comments, count_info="comments")
+            _summarize()
             
         return ProcessedData(comments, replies, user_pairs, submissions)
