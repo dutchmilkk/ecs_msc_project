@@ -1,8 +1,11 @@
 
 construction:
   directed: true
-  use_wcc: true
   allow_self_loops: false
+  use_wcc: 
+    mode: "topk_coverage"     # or "largest", "min_edges", "none"
+    coverage_threshold: 0.75  # for topk_coverage: keep components until X% of edges retained
+    min_edges: 1              # for min_edges: drop components smaller than this
 
 node_features:
   pooling: "mean"  

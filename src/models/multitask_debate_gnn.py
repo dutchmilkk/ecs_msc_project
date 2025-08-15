@@ -745,14 +745,33 @@ def train_gnn_live(all_graphs, model_args, train_args, model_class=MultitaskDeba
         train_val_sids = [sid for sid in subreddit_ids if sid != test_sid]
         random.seed(42)
         val_sid = random.choice(train_val_sids)
-        val_graphs = subreddit_graphs[val_sid]
+        # val_graphs = subreddit_graphs[val_sid]
+        # train_sids = [sid for sid in train_val_sids if sid != val_sid]
+        # train_graphs = [g for sid in train_sids for g in subreddit_graphs[sid]]
+        
+        # Latest-only validation for chosen val subreddit
+        val_all = subreddit_graphs[val_sid]  # already sorted by timestep above
+        val_n_last = int(train_args.get("val_n_last", 1))
+        val_pct_last = train_args.get("val_pct_last", None)
+        if val_pct_last is not None:
+            # use % of timesteps (e.g., 0.3 for last 30%)
+            k = max(1, int(np.ceil(val_pct_last * len(val_all))))
+        else:
+            k = max(1, min(val_n_last, len(val_all)))
+        val_graphs = val_all[-k:]                    # latest k timesteps
+        train_from_val_sid = val_all[:-k]            # earlier timesteps go to train
+
         train_sids = [sid for sid in train_val_sids if sid != val_sid]
         train_graphs = [g for sid in train_sids for g in subreddit_graphs[sid]]
-        
+        train_graphs += train_from_val_sid           # add earlier timesteps from val subreddit
+
         print(f"\nData Split:")
-        print(f"  - Training: {len(train_sids)} subreddits → {len(train_graphs)} graphs")
-        print(f"    Subreddits: {sorted(train_sids)}")
-        print(f"  - Validation: Subreddit {val_sid} → {len(val_graphs)} graphs")
+        print(f"  - Training: {len(train_sids)} subreddits + early timesteps from val {val_sid} → {len(train_graphs)} graphs")
+        # print(f"  - Training: {len(train_sids)} subreddits → {len(train_graphs)} graphs")
+        print(f"    Train subreddits: {sorted(train_sids) + [f"{val_sid} (partial)"]}")
+        # print(f"    Subreddits: {sorted(train_sids)}")
+        print(f"  - Validation: Subreddit {val_sid} latest timestep(s): {[int(g.local_timestep) for g in val_graphs]} → {k} graph(s)")
+        # print(f"  - Validation: Subreddit {val_sid} → {len(val_graphs)} graphs")
         print(f"  - Testing:  Subreddit {test_sid} → {len(test_graphs)} graphs")
 
         # Analyze data splits
@@ -890,8 +909,11 @@ def train_gnn_live(all_graphs, model_args, train_args, model_class=MultitaskDeba
             hist["epoch"].append(epoch)
             hist["train_total"].append(train_total)
             hist["train_link"].append(train_link)
-            hist["train_conf"].append(train_conf)
-            hist["train_stance"].append(train_stance)
+            # ONLY store task losses if task is active
+            if mode in ("full", "no_stance"):
+                hist["train_conf"].append(train_conf)
+            if mode in ("full", "no_conf"):
+                hist["train_stance"].append(train_stance)
 
             # Validation
             val_total, val_link, val_conf, val_stance = validate_model(
@@ -899,8 +921,10 @@ def train_gnn_live(all_graphs, model_args, train_args, model_class=MultitaskDeba
             )
             hist["val_total"].append(val_total)
             hist["val_link"].append(val_link)
-            hist["val_conf"].append(val_conf)
-            hist["val_stance"].append(val_stance)
+            if mode in ("full", "no_stance"):
+                hist["val_conf"].append(val_conf)
+            if mode in ("full", "no_conf"):
+                hist["val_stance"].append(val_stance)
             
             # Live plotting
             live["epoch"].append(epoch)
@@ -990,7 +1014,7 @@ def train_gnn_live(all_graphs, model_args, train_args, model_class=MultitaskDeba
     print("\n*** Average Test Performance ***")
     for m in sorted(avg_metrics.keys()):
         avg_val = avg_metrics[m]
-        metric_str = f"{m.replace('_', ' ').title()}: {avg_val:.4f}"
+        metric_str = f"{m.replace('_', ' ').title()}"
         print(f"  - {metric_str:20}: {avg_val:.4f}")
     
     

@@ -66,9 +66,16 @@ class GraphProcessor:
     def build_graph_snapshots(self, pairs: pd.DataFrame, node_dict: Dict[int, Dict[int, Dict[str, np.ndarray]]], configs: Dict[str, Any]) -> Dict[int, Dict[int, nx.Graph]]:
         # {subreddit_id: {timestep: graph}}
         directed = configs.get('directed', True)
-        use_wcc = configs.get('use_wcc', False)
         edge_attrs = configs.get('edge_attrs', ['mean_confidence', 'net_vector'])
-        print(f"Building graph snapshots: directed={directed}, use_wcc={use_wcc}, edge_attrs={edge_attrs}")
+        
+        # WCC filtering mode
+        wcc_cfg = configs.get('use_wcc', {"mode": "none"})
+        wcc_mode = wcc_cfg.get("mode", "none").lower()
+        coverage_threshold = wcc_cfg.get("coverage_threshold", 0.95)
+        min_edges = wcc_cfg.get("min_edges", 1)
+
+        print(f"Building graph snapshots: directed={directed}, wcc_mode={wcc_mode}, edge_attrs={edge_attrs}")
+        
         graph_dict = {}
         
         # Build from pairs
@@ -91,27 +98,52 @@ class GraphProcessor:
                     edge_data = {attr: row[attr] for attr in edge_attrs if attr in row}
                     G.add_edge(src, dst, **edge_data)
             
-            # Apply weakly connected component filtering if requested
-            if use_wcc and len(G.nodes()) > 0:
-                edges_before_wcc = len(G.edges())
+            # WCC filtering
+            if wcc_mode != "none" and len(G.nodes()) > 0:
                 if directed:
-                    # For directed graphs, get largest weakly connected component
-                    wcc_components = list(nx.weakly_connected_components(G))
+                    components = list(nx.weakly_connected_components(G))
                 else:
-                    # For undirected graphs, get largest connected component
-                    wcc_components = list(nx.connected_components(G))
-                
-                if wcc_components:
-                    # Get the largest component
-                    largest_component = max(wcc_components, key=len)
+                    components = list(nx.connected_components(G))
+
+                if not components:
+                    continue
+
+                before_nodes, before_edges = len(G.nodes()), len(G.edges())
+
+                if wcc_mode == "largest":
+                    largest_component = max(components, key=len)
                     G = G.subgraph(largest_component).copy()
-                    
-                    # Log filtered
-                    edges_after_wcc = len(G.edges())
-                    edges_filtered = edges_before_wcc - edges_after_wcc
-                    if edges_filtered > 0:
-                        print(f"    + [Subreddit {subreddit_id}, T{timestep}] {edges_filtered} edges filtered by WCC ({edges_before_wcc} -> {edges_after_wcc})")
-            
+
+                elif wcc_mode == "topk_coverage":
+                    comp_edges = [(c, G.subgraph(c).number_of_edges()) for c in components]
+                    comp_edges.sort(key=lambda x: x[1], reverse=True)
+                    total_edges = sum(e for _, e in comp_edges)
+                    kept_nodes = set()
+                    covered_edges = 0
+                    for comp, e_count in comp_edges:
+                        kept_nodes.update(comp)
+                        covered_edges += e_count
+                        if total_edges > 0 and covered_edges / total_edges >= coverage_threshold:
+                            break
+                    G = G.subgraph(kept_nodes).copy()
+
+                elif wcc_mode == "min_edges":
+                    kept_nodes = set()
+                    for comp in components:
+                        if G.subgraph(comp).number_of_edges() >= min_edges:
+                            kept_nodes.update(comp)
+                    G = G.subgraph(kept_nodes).copy()
+
+                after_nodes, after_edges = len(G.nodes()), len(G.edges())
+                edges_removed = before_edges - after_edges
+                pct_removed = (edges_removed / before_edges * 100) if before_edges else 0
+
+                print(
+                    f"[Subreddit {subreddit_id}, T{timestep}] [WCC:{wcc_mode}] "
+                    f"Nodes {before_nodes}->{after_nodes}, Edges {before_edges}->{after_edges} "
+                    f"({pct_removed:.1f}% edges removed)"
+                )
+
             graph_dict.setdefault(subreddit_id, {})[timestep] = G
 
         return graph_dict
