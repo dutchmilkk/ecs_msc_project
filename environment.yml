@@ -22,9 +22,9 @@ dependencies:
   - sentence-transformers==5.1.0
   - texttable==1.7.0
   - threadpoolctl==3.6.0
-  - torch==2.8.0+cu128
+  # - torch==2.8.0+cu128
   - torch-geometric==2.6.1
-  - torchvision==0.23.0+cu128
+  # - torchvision==0.23.0+cu128
   - widgetsnbextension==4.0.14
 - python=3.12.11
 - python-dotenv=1.1.0
