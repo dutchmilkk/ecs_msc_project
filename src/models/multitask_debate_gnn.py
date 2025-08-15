@@ -890,8 +890,11 @@ def train_gnn_live(all_graphs, model_args, train_args, model_class=MultitaskDeba
             hist["epoch"].append(epoch)
             hist["train_total"].append(train_total)
             hist["train_link"].append(train_link)
-            hist["train_conf"].append(train_conf)
-            hist["train_stance"].append(train_stance)
+            # ONLY store task losses if task is active
+            if mode in ("full", "no_stance"):
+                hist["train_conf"].append(train_conf)
+            if mode in ("full", "no_conf"):
+                hist["train_stance"].append(train_stance)
 
             # Validation
             val_total, val_link, val_conf, val_stance = validate_model(
@@ -899,8 +902,10 @@ def train_gnn_live(all_graphs, model_args, train_args, model_class=MultitaskDeba
             )
             hist["val_total"].append(val_total)
             hist["val_link"].append(val_link)
-            hist["val_conf"].append(val_conf)
-            hist["val_stance"].append(val_stance)
+            if mode in ("full", "no_stance"):
+                hist["val_conf"].append(val_conf)
+            if mode in ("full", "no_conf"):
+                hist["val_stance"].append(val_stance)
             
             # Live plotting
             live["epoch"].append(epoch)
