@@ -1,5 +1,10 @@
 .env
 .conda
 __pycache__/
+
+# ignore changes to processed files for now
 comments.pkl
 submissions.pkl
+user_pairs.pkl
+replies.pkl
+pyg_graphs_384.pt  
