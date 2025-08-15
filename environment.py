@@ -4,15 +4,14 @@ channels:
 - conda-forge
 - defaults
 dependencies:
-- numpy
-- transformers
-- matplotlib
-- ipykernel
-- python-dotenv
-- pandas
-- pytorch-cuda==12.4
-- torchaudio
-- torchvision
+- ipykernel=6.29.5
+- matplotlib=3.10.0
+- numpy=2.3.1
+- pandas=2.3.1
+- python-dotenv=1.1.0
+- pytorch-cuda=12.4
+- torchaudio=2.5.1
+- transformers=4.53.3
 - pip:
   - hf-xet==1.1.7
   - igraph==0.11.9

@@ -1,7 +1,7 @@
 """
 Multitask DebateGNN for Online Discussion Analysis
 
-This module implements a Graph Neural Network architecture for analyzing online debate discussions.
+Implements a Graph Neural Network architecture for analyzing online debate discussions.
 The model performs multitask learning to jointly predict:
 1. Link prediction (connections between users)  
 2. Confidence prediction (reliability/certainty of relationships)

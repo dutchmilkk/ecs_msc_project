@@ -19,14 +19,16 @@ class CommunityDetectionResult(NamedTuple):
     optimization_summary: pd.DataFrame | None
 
 class LeidenCommunityProcessor:
-    def __init__(self, community_configs: Dict):
+    def __init__(self, community_configs: Dict, output_dir: str = "data/processed"):
         self.community_configs = community_configs
         self.seed = community_configs.get('seed', 42)
         self.optimization_cfg = community_configs.get('optimization', {})
         self.algorithm = community_configs.get('algorithm', 'leiden')
         if self.algorithm != 'leiden':
             raise NotImplementedError("LeidenCommunityProcessor only supports 'leiden' algorithm.")
-    
+
+        self.output_dir = output_dir
+
     def _convert_nx_to_igraph(
         self, G: nx.Graph, 
         weight_strategy: str | None = None
@@ -292,11 +294,64 @@ class LeidenCommunityProcessor:
         }
         return meta, scans_df, best_df, summary_df
 
+    def save_results(self, result: CommunityDetectionResult, subdir: str = "communities"):
+        import os, json, numpy as np
+        if self.output_dir is None:
+            print("Warning: output_dir not set; skipping save.")
+            return
+        out_dir = os.path.join(self.output_dir, subdir)
+        os.makedirs(out_dir, exist_ok=True)
+
+        # 1. Partitions
+        result.partitions.to_parquet(os.path.join(out_dir, "partitions.parquet"), index=False)
+        print(f"Saved partitions to {f'{out_dir}/partitions.parquet'}")
+
+        # 2. Labels arrays (flattened keys)
+        np.savez_compressed(
+            os.path.join(out_dir, "labels_arrays.npz"),
+            **{
+                f"{sub_id}_{ts}": arr
+                for sub_id, ts_dict in result.labels_array.items()
+                for ts, arr in ts_dict.items()      # type: ignore
+            }
+        )
+        print(f"Saved labels arrays to {f'{out_dir}/labels_arrays.npz'}")
+
+        # 3. Index mapping
+        with open(os.path.join(out_dir, "labels_index.json"), "w") as f:
+            json.dump(
+                {
+                    str(sub_id): {
+                        str(ts): {str(k): int(v) for k, v in idx_map.items()}
+                        for ts, idx_map in ts_dict.items()
+                    }
+                    for sub_id, ts_dict in result.labels_index_dict.items()
+                },
+                f
+            )
+        print(f"Saved index mapping to {f'{out_dir}/labels_index.json'}")
+
+        # 4. Name mapping
+        with open(os.path.join(out_dir, "labels_name.json"), "w") as f:
+            json.dump(
+                {
+                    str(sub_id): {
+                        str(ts): name_map
+                        for ts, name_map in ts_dict.items()
+                    }
+                    for sub_id, ts_dict in result.labels_name_dict.items()
+                },
+                f
+            )
+        print(f"Saved name mapping to {f'{out_dir}/labels_name.json'}")
+
     def run_community_detection(
         self,
         graph_dict: Dict[int, Dict[int, nx.Graph]],
         use_optimization: bool = True,
         force_resolution: float | None = None,
+        save: bool = False,
+        save_subdir: str = "communities",
     ) -> CommunityDetectionResult:
         """
         Run community detection over all graphs.
@@ -417,7 +472,7 @@ class LeidenCommunityProcessor:
             'optimization_meta': optimization_meta
         }
 
-        return CommunityDetectionResult(
+        result = CommunityDetectionResult(
             meta=result_meta,
             partitions=partitions_df,
             labels_array=labels_array_map,
@@ -427,3 +482,8 @@ class LeidenCommunityProcessor:
             optimization_best=best_df,
             optimization_summary=summary_df
         )
+        if save:
+            self.save_results(result, subdir=save_subdir)
+        return result
+        
+    
