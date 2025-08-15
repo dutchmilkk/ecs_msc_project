@@ -1,7 +1,9 @@
 """
 Helper script for extracting conda environment information. This code is
 originally developed by Andres Berejnoi.
-Original Code on GitHub: https://github.com/andresberejnoi/Conda-Tools.git
+GitHub: https://github.com/andresberejnoi/Conda-Tools.git
+
+I adapted the code so that pip and python are always included even if absent from history.
 """
 
 """A simple tool that produces environment files for
@@ -97,17 +99,25 @@ def export_env(from_history:bool=False, no_builds:bool=False) -> dict[str, Union
     cmd = ['conda', 'env', 'export']
     if from_history:
         cmd.append('--from-history')
-        if no_builds:
-            raise ValueError('Cannot include build versions with "from history" mode')
-    if not no_builds:
+        # Do NOT force --no-builds here; conda ignores builds already in --from-history
+    elif no_builds:
         cmd.append('--no-builds')
-    cp = subprocess.run(cmd, stdout=subprocess.PIPE)
-    try:
-        cp.check_returncode()
-    except:
-        raise
     else:
-        return yaml.safe_load(cp.stdout)
+        cmd.append('--no-builds')  # preserve prior default behavior for full export
+    cp = subprocess.run(cmd, stdout=subprocess.PIPE)
+    cp.check_returncode()
+    return yaml.safe_load(cp.stdout)
+    #     if no_builds:
+    #         raise ValueError('Cannot include build versions with "from history" mode')
+    # if not no_builds:
+    #     cmd.append('--no-builds')
+    # cp = subprocess.run(cmd, stdout=subprocess.PIPE)
+    # try:
+    #     cp.check_returncode()
+    # except:
+    #     raise
+    # else:
+    #     return yaml.safe_load(cp.stdout)
 
 def _split_by_name_and_version(full_name:str, is_pip_package=False) -> dict:
     '''use is_pip_package to indicate if the package was installed by pip'''
@@ -190,7 +200,7 @@ def _create_split_dictionary(env_data:list) -> dict:
                     split_deps['pip'][_name] = name_split_dict
     return split_deps
 
-def merge_dependencies(full_env, history_env, use_versions:bool) -> list:
+def merge_dependencies(full_env, history_env, use_versions:bool, keep_core:bool=True) -> list:
     full_dependencies:list = full_env['dependencies']
     hist_dependencies:list = history_env['dependencies']
 
@@ -198,31 +208,56 @@ def merge_dependencies(full_env, history_env, use_versions:bool) -> list:
     split_full_deps = _create_split_dictionary(full_dependencies)
     split_hist_deps = _create_split_dictionary(hist_dependencies)
 
+    # [2025.08.15 - VDS] Added python and pip
+    core_pkgs = {'python','pip'} if keep_core else set()
+
     #-- perform the actual merge
     _dependencies = []
+    merged = []
     for item_key in split_full_deps:
-        if item_key in split_hist_deps:
-            if item_key=='pip':
-                #TODO handle pip here
-                pip_dict:dict = {'pip':[]}
-                _dependencies.append('pip')   #this avoids a warning with conda install
-                _dependencies.append(pip_dict)
+        if item_key in split_hist_deps or item_key in core_pkgs:
+            if item_key == 'pip':
+                pip_dict = {'pip': []}
+                merged.append('pip')
                 for _pip_item_key in split_full_deps[item_key]:
                     if use_versions:
-                        pkg_object:dict = split_full_deps[item_key][_pip_item_key]
-                        joined_pkg:str = _join_name_version(pkg_object, is_pip_package=True)
+                        pkg_object = split_full_deps[item_key][_pip_item_key]
+                        joined_pkg = _join_name_version(pkg_object, is_pip_package=True)
                         pip_dict['pip'].append(joined_pkg)
                     else:
                         pip_dict['pip'].append(_pip_item_key)
+                merged.append(pip_dict)
             else:
                 if use_versions:
-                    pkg_object:dict = split_full_deps[item_key]
-                    joined_pkg:str = _join_name_version(pkg_object, is_pip_package=False)
-                    _dependencies.append(joined_pkg)
+                    pkg_object = split_full_deps[item_key]
+                    joined_pkg = _join_name_version(pkg_object, is_pip_package=False)
+                    merged.append(joined_pkg)
                 else:
-                    _dependencies.append(item_key)
+                    merged.append(item_key)
+    return merged
+    # for item_key in split_full_deps:
+    #     if item_key in split_hist_deps:
+    #         if item_key=='pip':
+    #             #TODO handle pip here
+    #             pip_dict:dict = {'pip':[]}
+    #             _dependencies.append('pip')   #this avoids a warning with conda install
+    #             _dependencies.append(pip_dict)
+    #             for _pip_item_key in split_full_deps[item_key]:
+    #                 if use_versions:
+    #                     pkg_object:dict = split_full_deps[item_key][_pip_item_key]
+    #                     joined_pkg:str = _join_name_version(pkg_object, is_pip_package=True)
+    #                     pip_dict['pip'].append(joined_pkg)
+    #                 else:
+    #                     pip_dict['pip'].append(_pip_item_key)
+    #         else:
+    #             if use_versions:
+    #                 pkg_object:dict = split_full_deps[item_key]
+    #                 joined_pkg:str = _join_name_version(pkg_object, is_pip_package=False)
+    #                 _dependencies.append(joined_pkg)
+    #             else:
+    #                 _dependencies.append(item_key)
 
-    return _dependencies
+    # return _dependencies
 
 def produce_output(output_file:str, env_data:dict, verbose:bool):
     if output_file is None:
@@ -258,60 +293,129 @@ def _replace_env_name(new_name:str, reference_env:dict, env_to_modify:dict, incl
 
     return env_to_modify
 
-
 def main(args):
-    #-- extract CLI flags
-    from_history:bool = args.from_history
-    no_builds   :bool = args.no_builds
-    use_versions:bool = args.use_versions
-    verbose     :bool = args.verbose
+    # Extract CLI flags
+    from_history  : bool = args.from_history
+    no_builds     : bool = args.no_builds
+    use_versions  : bool = args.use_versions
+    verbose       : bool = args.verbose
+    include_prefix: bool = args.include_prefix
+    env_name      : str  = args.env_name
+    output_file   : str  = args.output
 
-    include_prefix:bool = args.include_prefix
-    env_name     :str  = args.env_name
-    output_file  :str  = args.output
-
+    # Always get a full export (no builds if requested) for reference (versions, channels, pip section, prefix)
     full_env_output = export_env(from_history=False, no_builds=no_builds)
 
-    #-- Maintain default conda env export functionality
     if not from_history:
-        final_env_dict = export_env(from_history=False, no_builds=no_builds)
-        #produce_output(output_file, full_env_output, verbose=verbose)
-        #return
+        # Standard full export path
+        final_env_dict = dict(full_env_output)
 
-    elif from_history and not use_versions:  #return the standard --from-history response
-        final_env_dict = export_env(from_history=True)  #from history
-        final_env_dict['channels'] = full_env_output['channels']
+    elif from_history and not use_versions:
+        # History export (names only) then post-process to ensure python + pip (with versions from full env)
+        hist_env = export_env(from_history=True)
 
-        _pip_section = get_pip_section(full_env_output['dependencies'])
-        if len(_pip_section.values()) > 0:  #this adds the pip part 
-            final_env_dict['dependencies'].append(_pip_section)
+        # Start from history export
+        final_env_dict = {
+            'name': hist_env.get('name', full_env_output['name']),
+            'channels': full_env_output['channels'],   # ensure third-party channels kept
+            'dependencies': list(hist_env['dependencies'])
+        }
 
-        #produce_output(output_file, from_history_env, verbose=verbose)
-        #return
+        # Collect string deps for quick membership
+        dep_strs = {d for d in final_env_dict['dependencies'] if isinstance(d, str)}
 
-    elif from_history and use_versions:
-        #-- Create merged list of dependencies
-        full_env_output:dict = export_env(from_history=False, no_builds=False)
-        hist_env_output:dict = export_env(from_history=True)
-        _merged_dependencies:list = merge_dependencies(full_env_output, hist_env_output, use_versions)
-        
-        #-- setup final env dictionary
-        final_env_dict = dict()
-        final_env_dict['name']         = full_env_output['name']
-        final_env_dict['channels']     = full_env_output['channels']
-        final_env_dict['dependencies'] = _merged_dependencies
+        # Ensure python (with version) present
+        if not any(isinstance(d, str) and d.startswith('python') for d in final_env_dict['dependencies']):
+            py_spec = next((d for d in full_env_output['dependencies']
+                            if isinstance(d, str) and d.startswith('python=')), None)
+            if py_spec:
+                final_env_dict['dependencies'].insert(0, py_spec)
+            else:
+                final_env_dict['dependencies'].insert(0, 'python')
 
-        _pip_section = get_pip_section(full_env_output['dependencies'])
-        if len(_pip_section.values()) > 0:  #this adds the pip part 
-            final_env_dict['dependencies'].append(_pip_section)
+        # Ensure pip package marker
+        if 'pip' not in dep_strs:
+            final_env_dict['dependencies'].append('pip')
 
-        final_env_dict['prefix']       = full_env_output['prefix']
+        # Add pip section (with versions) from full export if any
+        pip_section = get_pip_section(full_env_output['dependencies'])
+        if pip_section:
+            final_env_dict['dependencies'].append(pip_section)
 
-    #-- Modify name and prefix if specified
+        # Prefix comes from full env
+        final_env_dict['prefix'] = full_env_output.get('prefix')
+
+    else:  # from_history and use_versions
+        # Need both full and history exports to build merged dependency list with versions
+        hist_env_output = export_env(from_history=True)
+        merged_deps = merge_dependencies(full_env_output, hist_env_output, use_versions=True, keep_core=True)
+        # merge_dependencies already injects 'pip' + pip section (with versions) if present
+        final_env_dict = {
+            'name': full_env_output['name'],
+            'channels': full_env_output['channels'],
+            'dependencies': merged_deps,
+            'prefix': full_env_output.get('prefix')
+        }
+
+    # Adjust name/prefix if requested
     final_env_dict = _replace_env_name(env_name, full_env_output, final_env_dict, include_prefix=include_prefix)
 
-    #-- Output final result
+    # Output
     produce_output(output_file, final_env_dict, verbose=verbose)
+#
+# def main(args):
+#     #-- extract CLI flags
+#     from_history:bool = args.from_history
+#     no_builds   :bool = args.no_builds
+#     use_versions:bool = args.use_versions
+#     verbose     :bool = args.verbose
+
+#     include_prefix:bool = args.include_prefix
+#     env_name     :str  = args.env_name
+#     output_file  :str  = args.output
+
+#     full_env_output = export_env(from_history=False, no_builds=no_builds)
+
+#     #-- Maintain default conda env export functionality
+#     if not from_history:
+#         final_env_dict = export_env(from_history=False, no_builds=no_builds)
+#         #produce_output(output_file, full_env_output, verbose=verbose)
+#         #return
+
+#     elif from_history and not use_versions:  #return the standard --from-history response
+#         final_env_dict = export_env(from_history=True)  #from history
+#         final_env_dict['channels'] = full_env_output['channels']
+
+#         _pip_section = get_pip_section(full_env_output['dependencies'])
+#         if len(_pip_section.values()) > 0:  #this adds the pip part 
+#             final_env_dict['dependencies'].append(_pip_section)
+
+#         #produce_output(output_file, from_history_env, verbose=verbose)
+#         #return
+
+#     elif from_history and use_versions:
+#         #-- Create merged list of dependencies
+#         full_env_output:dict = export_env(from_history=False, no_builds=False)
+#         hist_env_output:dict = export_env(from_history=True)
+#         _merged_dependencies:list = merge_dependencies(full_env_output, hist_env_output, use_versions)
+        
+#         #-- setup final env dictionary
+#         final_env_dict = dict()
+#         final_env_dict['name']         = full_env_output['name']
+#         final_env_dict['channels']     = full_env_output['channels']
+#         final_env_dict['dependencies'] = _merged_dependencies
+
+#         _pip_section = get_pip_section(full_env_output['dependencies'])
+#         if len(_pip_section.values()) > 0:  #this adds the pip part 
+#             final_env_dict['dependencies'].append(_pip_section)
+
+#         final_env_dict['prefix']       = full_env_output['prefix']
+
+#     #-- Modify name and prefix if specified
+#     final_env_dict = _replace_env_name(env_name, full_env_output, final_env_dict, include_prefix=include_prefix)
+
+#     #-- Output final result
+#     produce_output(output_file, final_env_dict, verbose=verbose)
     
 
 if __name__ == '__main__':

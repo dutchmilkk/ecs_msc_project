@@ -15,10 +15,6 @@ model:
     mode: "link_only"
     num_layers: 3
     conv_cls: SAGEConv
-  3_ecc_lo:
-    mode: "link_only"
-    num_layers: 3
-    conv_cls: ECCConv
   3_ecc_ns:
     mode: "no_stance"
     num_layers: 3
