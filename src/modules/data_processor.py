@@ -427,6 +427,18 @@ class DataProcessor:
             pct_agree = round((group['label_desc'] == 'agree').mean() * 100, 1)
             n_unique_comments = group['src_comment_id'].nunique() + group['dst_comment_id'].nunique()
             n_unique_authors = group['src_author'].nunique() + group['dst_author'].nunique()
+
+            # New timestep summary columns
+            total_timesteps = group['timestep'].nunique() if 'timestep' in group.columns else 0
+            if 'timestep' in group.columns and 'actual_window_size' in group.columns and total_timesteps > 0:
+                avg_timestep_window_size = float(
+                    group[['timestep', 'actual_window_size']]
+                    .drop_duplicates(subset=['timestep'])['actual_window_size']
+                    .mean()
+                )
+            else:
+                avg_timestep_window_size = 0.0
+
             stats.append({
                 group_col: sid,
                 'Earliest Date': earliest,
@@ -437,7 +449,9 @@ class DataProcessor:
                 '% Neutral': pct_neutral,
                 '% Agree': pct_agree,
                 '# Unique Comments': n_unique_comments,
-                '# Unique Authors': n_unique_authors
+                '# Unique Authors': n_unique_authors,
+                'Total Timesteps': int(total_timesteps),
+                'Avg Timestep Window Size (days)': round(avg_timestep_window_size, 1),
             })
         # Add "All" row (use label_desc for consistency)
         all_group = df
@@ -451,6 +465,20 @@ class DataProcessor:
         pct_agree = round((all_group['label_desc'] == 'agree').mean() * 100, 1)
         n_unique_comments = all_group['src_comment_id'].nunique() + all_group['dst_comment_id'].nunique()
         n_unique_authors = all_group['src_author'].nunique() + all_group['dst_author'].nunique()
+
+        # Unique windows across all subreddits
+        if {'timestep', 'actual_window_size'}.issubset(all_group.columns):
+            windows_all = (
+                all_group[['subreddit_id', 'timestep', 'actual_window_size']]
+                .dropna(subset=['timestep', 'actual_window_size'])
+                .drop_duplicates(subset=['subreddit_id', 'timestep'])
+            )
+            total_timesteps = len(windows_all)
+            avg_timestep_window_size = float(windows_all['actual_window_size'].mean()) if total_timesteps > 0 else 0.0
+        else:
+            total_timesteps = 0
+            avg_timestep_window_size = 0.0
+
         stats.insert(0, {
             group_col: 'All',
             'Earliest Date': earliest,
@@ -461,7 +489,9 @@ class DataProcessor:
             '% Neutral': pct_neutral,
             '% Agree': pct_agree,
             '# Unique Comments': n_unique_comments,
-            '# Unique Authors': n_unique_authors
+            '# Unique Authors': n_unique_authors,
+            'Total Timesteps': int(total_timesteps),
+            'Avg Timestep Window Size (days)': round(avg_timestep_window_size, 1),
         })
         display(pd.DataFrame(stats))
 

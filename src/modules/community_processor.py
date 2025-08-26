@@ -35,7 +35,7 @@ class LeidenCommunityProcessor:
     ) -> Tuple[ig.Graph, Dict[str, int], Dict[int, str]]:
         # 1. Get edges (with data) and nodes
         edges_with_data = list(G.edges(data=True))
-        nodes = sorted(G.nodes())
+        nodes = list(G.nodes()) #sorted(G.nodes())
 
         # 2. Create igraph graph
         ig_graph = ig.Graph()
@@ -129,8 +129,9 @@ class LeidenCommunityProcessor:
             return la.find_partition(ig_graph, partition_cls, **kwargs)
         
         # Evaluate a partition -> dict row
-        def _eval_partition(G: nx.Graph, partition, resolution: float | None) -> dict:
+        def _eval_partition(G, partition, resolution):
             sizes = np.bincount(partition.membership)
+            quality = float(partition.quality())  # correct for all Leiden partitions
             row = {
                 'resolution': resolution,
                 'num_nodes': G.number_of_nodes(),
@@ -139,10 +140,12 @@ class LeidenCommunityProcessor:
                 'min_size': int(sizes.min()) if len(sizes) else 0,
                 'max_size': int(sizes.max()) if len(sizes) else 0,
                 'mean_size': float(sizes.mean()) if len(sizes) else 0.0,
-                'metric_value': partition.modularity if metric == 'modularity' else partition.modularity,
-                'modularity': partition.modularity
+                'metric_value': quality,     # currently the only metric implemented
+                'quality': quality,
+                'modularity': getattr(partition, 'modularity', np.nan),
             }
             return row
+
         
         #=========================================
         # END HELPER FUNCTIONS
@@ -165,14 +168,15 @@ class LeidenCommunityProcessor:
         # Leiden-specific config
         weight_strategy = self.community_configs.get('weights', {}).get('strategy', 'agreement_diff')
         algo_cfg = self.community_configs.get('algorithms', {}).get(self.algorithm, {})
-        partition_type_name = algo_cfg.get('partition_type', 'RBConfigurationVertexPartition')
+        partition_type_name = algo_cfg.get('partition_type', 'CPMVertexPartition')
 
         partition_cls_map = {
             'RBConfigurationVertexPartition': la.RBConfigurationVertexPartition,
             'ModularityVertexPartition': la.ModularityVertexPartition,
             'CPMVertexPartition': la.CPMVertexPartition
         }
-        partition_cls = partition_cls_map.get(partition_type_name, la.RBConfigurationVertexPartition)
+        partition_cls = partition_cls_map.get(partition_type_name, la.CPMVertexPartition)
+        print(partition_cls)
 
         # Cache igraph conversions (apply weights once per graph)
         ig_cache = {}
@@ -187,6 +191,7 @@ class LeidenCommunityProcessor:
         uniform_resolution_scores = []  # aggregated resolution performance (if mode == uniform)
 
         # Scan resolutions per graph
+        print(res_grid)
         for (sub_id, ts), ig_graph in ig_cache.items():
             G = graph_dict[sub_id][ts]
             scans = []
@@ -201,8 +206,14 @@ class LeidenCommunityProcessor:
                 row = _eval_partition(G, partition, r)
                 scans.append(row)
 
+                # Add fragmentation threshold for this graph (useful for diagnostics)
+                row['fragmentation_limit'] = max_comm_factor * math.sqrt(n)
+
                 # Constraints check
-                constraint_ok = (row['num_communities'] >= min_comms and row['min_size'] >= min_comm_size)
+                constraint_ok = (
+                    row['num_communities'] >= min_comms and 
+                    row['min_size'] >= min_comm_size
+                )
                 if constraint_ok:
                     if best_row is None or row['metric_value'] > best_row['metric_value']:
                         best_row = row
@@ -416,13 +427,13 @@ class LeidenCommunityProcessor:
         # 2. Prepare partition configuration
         weight_strategy = self.community_configs.get('weights', {}).get('strategy', 'agreement_diff')
         algo_cfg = self.community_configs.get('algorithms', {}).get(self.algorithm, {})
-        partition_type_name = algo_cfg.get('partition_type', 'RBConfigurationVertexPartition')
+        partition_type_name = algo_cfg.get('partition_type', 'CPMVertexPartition')
         partition_cls_map = {
             'RBConfigurationVertexPartition': la.RBConfigurationVertexPartition,
             'ModularityVertexPartition': la.ModularityVertexPartition,
             'CPMVertexPartition': la.CPMVertexPartition
         }
-        partition_cls = partition_cls_map.get(partition_type_name, la.RBConfigurationVertexPartition)
+        partition_cls = partition_cls_map.get(partition_type_name, la.CPMVertexPartition)
 
         # 3. Execute partitions
         partition_rows = []

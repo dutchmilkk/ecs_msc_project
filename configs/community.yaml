@@ -2,7 +2,7 @@
 algorithm: "leiden"
 seed: 42
 weights:
-  strategy: "low_neutrality"  # Options: agreement_diff, confidence_sqrt, polarization, low_neutrality, echo_intensity, uniform
+  strategy: "echo_intensity"  # Options: agreement_diff, confidence_sqrt, polarization, low_neutrality, echo_intensity, uniform
 
 optimization:
   mode: "per_graph"      # Options: per_graph, uniform
@@ -11,9 +11,9 @@ optimization:
   min_community_size: 10
   max_communities_factor: 0.8  # Abort if num_communities > factor * sqrt(n)
   resolution:
-    grid: [0.05, 0.1, 0.2, 0.4, 0.6, 0.9, 1.0]
+    grid: [0.05, 0.07, 0.1, 0.2, 0.3, 0.5, 0.8, 1.0]
     early_stop:
-      window: 3       # Consecutive points
+      window: 5       # Consecutive points
       delta: 0.001    # Minimal modularity improvement
 
 algorithms:
