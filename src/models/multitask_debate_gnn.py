@@ -467,39 +467,6 @@ class MultitaskDebateGNN(nn.Module):
             total += weighted_term
     
         return total
-    # def uncertainty_weighted_loss(self, link_loss, conf_loss, stance_loss):
-    #     """
-    #     Compute uncertainty-weighted multitask loss using learnable log-variance parameters.
-        
-    #     Implements the multitask uncertainty weighting from "Multi-Task Learning Using 
-    #     Uncertainty to Weigh Losses for Scene Geometry and Semantics" (Kendall et al.).
-        
-    #     Args:
-    #         link_loss (torch.Tensor): Link prediction loss
-    #         conf_loss (torch.Tensor): Confidence prediction loss
-    #         stance_loss (torch.Tensor): Stance prediction loss
-
-    #     Returns:
-    #         torch.Tensor: Weighted total loss
-    #     """
-    #     task_losses, log_vars = [], []
-    #     total = torch.tensor(0.0, device=link_loss.device, dtype=link_loss.dtype)
-
-    #     task_losses.append(link_loss)
-    #     log_vars.append(self.log_var_link)
-    #     if self.use_conf:
-    #         task_losses.append(conf_loss)
-    #         log_vars.append(self.log_var_conf)
-    #     if self.use_stance:
-    #         task_losses.append(stance_loss)
-    #         log_vars.append(self.log_var_stance)
-        
-    #     for loss, s in zip(task_losses, log_vars):
-    #         precision = torch.exp(-s).clamp(min=0.2, max=5.0)
-    #         weighted_term = 0.5 * (loss * precision.squeeze() + s.squeeze())
-    #         total += weighted_term
-      
-    #     return total
 
     def compute_losses(self, z: torch.Tensor, edge_attr: torch.Tensor, 
                        pos_edge_index: torch.Tensor, neg_edge_index: torch.Tensor, 
@@ -745,12 +712,12 @@ def train_gnn_live(all_graphs, model_args, train_args, model_class=MultitaskDeba
         train_val_sids = [sid for sid in subreddit_ids if sid != test_sid]
         random.seed(42)
         val_sid = random.choice(train_val_sids)
-        # val_graphs = subreddit_graphs[val_sid]
-        # train_sids = [sid for sid in train_val_sids if sid != val_sid]
-        # train_graphs = [g for sid in train_sids for g in subreddit_graphs[sid]]
-        
-        # Latest-only validation for chosen val subreddit
+
+        # Latest-only validation for chosen val subreddit + temporal gap
         val_all = subreddit_graphs[val_sid]  # already sorted by timestep above
+        T = len(val_all)
+
+        # How many timesteps to validate on (k)
         val_n_last = int(train_args.get("val_n_last", 1))
         val_pct_last = train_args.get("val_pct_last", None)
         if val_pct_last is not None:
@@ -758,20 +725,43 @@ def train_gnn_live(all_graphs, model_args, train_args, model_class=MultitaskDeba
             k = max(1, int(np.ceil(val_pct_last * len(val_all))))
         else:
             k = max(1, min(val_n_last, len(val_all)))
-        val_graphs = val_all[-k:]                    # latest k timesteps
-        train_from_val_sid = val_all[:-k]            # earlier timesteps go to train
+        
+        # Temporal gap (g) between train and val
+        val_gap_n = int(train_args.get("val_gap_n", 0))
+        val_gap_pct = train_args.get("val_gap_pct", None)
+        if val_gap_pct is not None:
+            g = max(0, int(np.ceil(float(val_gap_pct) * T)))
+        else:
+            g = max(0, min(val_gap_n, T - k))
 
+        # Ensure split leaves at least 1 timestep for training-from-val if possible
+        max_g = max(0, T - k - 1)
+        g = min(g, max_g)
+
+        # Compute slices
+        split_train_end = max(0, T - (k + g))
+        split_gap_end = max(0, T - k)
+
+        train_from_val_sid = val_all[:split_train_end]      # earlier timesteps -> train
+        gap_graphs = val_all[split_gap_end:split_train_end]  # skipped entirely
+        val_graphs = val_all[split_gap_end:]
+        # train_from_val_sid = val_all[:-k]            # earlier timesteps go to train
+
+        # Build train set: all subreddits + early val timesteps
         train_sids = [sid for sid in train_val_sids if sid != val_sid]
         train_graphs = [g for sid in train_sids for g in subreddit_graphs[sid]]
         train_graphs += train_from_val_sid           # add earlier timesteps from val subreddit
 
+        # Logging
+        def _ts_list(gs): 
+            return [int(g.local_timestep) for g in gs] if gs else []
+        
         print(f"\nData Split:")
         print(f"  - Training: {len(train_sids)} subreddits + early timesteps from val {val_sid} → {len(train_graphs)} graphs")
-        # print(f"  - Training: {len(train_sids)} subreddits → {len(train_graphs)} graphs")
-        print(f"    Train subreddits: {sorted(train_sids) + [f"{val_sid} (partial)"]}")
-        # print(f"    Subreddits: {sorted(train_sids)}")
-        print(f"  - Validation: Subreddit {val_sid} latest timestep(s): {[int(g.local_timestep) for g in val_graphs]} → {k} graph(s)")
-        # print(f"  - Validation: Subreddit {val_sid} → {len(val_graphs)} graphs")
+        print(f"    Train subreddits: {sorted(train_sids) + [f'{val_sid} (partial)']}")
+        print(f"  - Validation: Subreddit {val_sid} latest timesteps: {_ts_list(val_graphs)} → {len(val_graphs)} graph(s)")
+        if g > 0:
+            print(f"  - Temporal Gap (g={g}): Subreddit {val_sid} timesteps skipped: {_ts_list(gap_graphs)}")
         print(f"  - Testing:  Subreddit {test_sid} → {len(test_graphs)} graphs")
 
         # Analyze data splits
