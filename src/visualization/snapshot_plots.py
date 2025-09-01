@@ -501,6 +501,58 @@ def analyze_embedding_community_alignment(embeddings, comm_labels, comm_nodes, m
         print(f"Cannot analyze embedding alignment: {e}")
         return None
 
+def _get_node_colors(processed_dict_single_subreddit, evolution_data=None, color_mode="lineage"):
+    """Helper function to get node colors for all timesteps consistently
+    
+    Args:
+        processed_dict_single_subreddit: Dictionary containing processed data for a single subreddit
+        evolution_data: Optional evolution data for lineage coloring
+        color_mode: Color mode ("lineage", "unique", "default")
+    
+    Returns:
+        dict: Mapping from "{timestep}_{community_id}" to hex color
+    """
+    if color_mode == "lineage" and evolution_data is not None and build_lineage_colors is not None:
+        print("  Using lineage colors for network evolution grid")
+        node_color_map = build_lineage_colors(
+            processed_dict_single_subreddit,
+            evolution_data,
+            mode="hungarian",
+            min_jaccard_parent=0.05,
+            split_strategy="new_hues"
+        )
+        return node_color_map
+        
+    elif color_mode == "unique" and build_unique_node_colors is not None:
+        print("  Using unique colors for network evolution grid")
+        node_color_map = build_unique_node_colors(processed_dict_single_subreddit)
+        return node_color_map
+        
+    else:  # color_mode == "default" or fallback
+        print("  Using default color cycling for network evolution grid")
+        # Simple color cycling using matplotlib default colors
+        default_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
+                         '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+        
+        node_color_map = {}
+        color_idx = 0
+        
+        # Get all unique communities across all timesteps
+        all_communities = set()
+        for ts_data in processed_dict_single_subreddit.values():
+            all_communities.update(ts_data['community_info']['comm_nodes'].keys())
+        
+        # Assign colors to communities
+        for ts, ts_data in processed_dict_single_subreddit.items():
+            comm_nodes = ts_data['community_info']['comm_nodes']
+            for comm_id in comm_nodes.keys():
+                color_key = f"{ts}_{comm_id}"
+                if color_key not in node_color_map:
+                    node_color_map[color_key] = default_colors[color_idx % len(default_colors)]
+                    color_idx += 1
+        
+        return node_color_map
+
 def plot_network_evolution_grid(processed_dict_single_subreddit, evolution_data=None, 
                                color_mode="lineage", figsize_per_plot=(4, 3), save_path=None):
     """Generate a subplot grid showing network graphs for all timesteps

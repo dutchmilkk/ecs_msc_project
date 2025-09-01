@@ -355,7 +355,7 @@ class ECSProcessor:
         ) if gnn_embeddings is not None else {}
         
         if self.verbose:
-            print(f"  --- End Alignment Analysis ---\n")
+            print(f"  **End Alignment Analysis**\n")
         
         # Build comprehensive community info
         subreddit_map = {v: k for k, v in self.base_configs['subreddits'].items()}

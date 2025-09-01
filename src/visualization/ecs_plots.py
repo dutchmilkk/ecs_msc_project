@@ -7,7 +7,7 @@ from typing import Dict, Optional
 class ECSPlotter:
     """Handles all ECS-related plotting and visualization"""
 
-    def __init__(self, output_dir: str = 'results'):
+    def __init__(self, output_dir: str = 'results/ecs'):
         self.output_dir = output_dir
     
     def plot_method_comparison(self, ecs_df: pd.DataFrame, processed_dict: Dict, save: bool = False):

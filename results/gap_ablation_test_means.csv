@@ -1,4 +1,0 @@
-gap,link_auc_mean,conf_mae_mean,conf_nll_mean,stance_nll_mean,stance_kl_mean
-0,0.876,0.346,0.712,0.624,0.616
-1,0.893,0.345,0.714,0.598,0.590
-2,0.849,0.344,0.724,0.638,0.630
