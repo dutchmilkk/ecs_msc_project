@@ -439,6 +439,9 @@ class DataProcessor:
             else:
                 avg_timestep_window_size = 0.0
 
+            # Add mean_confidence calculation
+            mean_confidence = round(group['confidence'].mean(), 3) if 'confidence' in group.columns else None
+
             stats.append({
                 group_col: sid,
                 'Earliest Date': earliest,
@@ -452,6 +455,7 @@ class DataProcessor:
                 '# Unique Authors': n_unique_authors,
                 'Total Timesteps': int(total_timesteps),
                 'Avg Timestep Window Size (days)': round(avg_timestep_window_size, 1),
+                'Mean Confidence': mean_confidence,  # <-- Added column
             })
         # Add "All" row (use label_desc for consistency)
         all_group = df
@@ -479,6 +483,8 @@ class DataProcessor:
             total_timesteps = 0
             avg_timestep_window_size = 0.0
 
+        # Add mean_confidence for "All" row
+        mean_confidence_all = round(all_group['confidence'].mean(), 3) if 'confidence' in all_group.columns else None
         stats.insert(0, {
             group_col: 'All',
             'Earliest Date': earliest,
@@ -492,6 +498,7 @@ class DataProcessor:
             '# Unique Authors': n_unique_authors,
             'Total Timesteps': int(total_timesteps),
             'Avg Timestep Window Size (days)': round(avg_timestep_window_size, 1),
+            'Mean Confidence': mean_confidence_all,  # <-- Added column
         })
         display(pd.DataFrame(stats))
 

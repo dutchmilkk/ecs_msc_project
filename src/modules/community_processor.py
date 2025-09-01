@@ -176,7 +176,7 @@ class LeidenCommunityProcessor:
             'CPMVertexPartition': la.CPMVertexPartition
         }
         partition_cls = partition_cls_map.get(partition_type_name, la.CPMVertexPartition)
-        print(partition_cls)
+        # print(partition_cls)
 
         # Cache igraph conversions (apply weights once per graph)
         ig_cache = {}
@@ -191,7 +191,7 @@ class LeidenCommunityProcessor:
         uniform_resolution_scores = []  # aggregated resolution performance (if mode == uniform)
 
         # Scan resolutions per graph
-        print(res_grid)
+        # print(res_grid)
         for (sub_id, ts), ig_graph in ig_cache.items():
             G = graph_dict[sub_id][ts]
             scans = []
@@ -435,6 +435,10 @@ class LeidenCommunityProcessor:
         }
         partition_cls = partition_cls_map.get(partition_type_name, la.CPMVertexPartition)
 
+        # Add constraint checking from config
+        min_comms = self.optimization_cfg.get('min_communities', 2)
+        min_comm_size = self.optimization_cfg.get('min_community_size', 3)
+        
         # 3. Execute partitions
         partition_rows = []
         
@@ -451,6 +455,34 @@ class LeidenCommunityProcessor:
                 partition = _run_partition(ig_graph, resolution)
 
                 membership = partition.membership
+                comm_sizes = np.bincount(membership)
+                num_communities = len(set(membership))
+                min_size = comm_sizes.min() if len(comm_sizes) > 0 else 0
+                
+                # Check constraints and retry with different resolution if needed
+                if num_communities < min_comms or min_size < min_comm_size:
+                    print(f"Graph ({sub_id}, {ts}): {num_communities} communities (min {min_comms}) or min size {min_size} (min {min_comm_size}) - trying higher resolution")
+                    
+                    # Try progressively higher resolutions
+                    retry_resolutions = [2.0, 1.8, 1.5, 1.3, 1.0, 0.8, 0.5, 0.3, 0.2, 0.1, 0.05]
+                    for retry_res in retry_resolutions:
+                        if retry_res != resolution:  # Skip if same as original
+                            retry_partition = _run_partition(ig_graph, retry_res)
+                            retry_membership = retry_partition.membership
+                            retry_comm_sizes = np.bincount(retry_membership)
+                            retry_num_communities = len(set(retry_membership))
+                            retry_min_size = retry_comm_sizes.min() if len(retry_comm_sizes) > 0 else 0
+                            
+                            if retry_num_communities >= min_comms and retry_min_size >= min_comm_size:
+                                print(f"  -> Using resolution {retry_res}: {retry_num_communities} communities")
+                                partition = retry_partition
+                                membership = retry_membership
+                                comm_sizes = retry_comm_sizes
+                                resolution = retry_res
+                                break
+                    else:
+                        print(f"  -> Could not satisfy constraints, keeping original result")
+
                 labels_arr = np.array(membership)
                 idx_dict = {i: comm for i, comm in enumerate(membership)}
                 name_dict = {idx_to_node[i]: comm for i, comm in enumerate(membership)}
@@ -458,8 +490,6 @@ class LeidenCommunityProcessor:
                 labels_array_map[sub_id][ts] = labels_arr
                 labels_dict_index_map[sub_id][ts] = idx_dict
                 labels_dict_name_map[sub_id][ts] = name_dict
-
-                comm_sizes = np.bincount(membership).tolist()
 
                 partition_rows.append({
                     'subreddit_id': sub_id,
@@ -469,7 +499,7 @@ class LeidenCommunityProcessor:
                     'num_edges': G.number_of_edges(),
                     'num_communities': len(set(membership)),
                     'modularity': partition.modularity,
-                    'community_sizes': comm_sizes
+                    'community_sizes': comm_sizes.tolist()
                 })
 
         partitions_df = pd.DataFrame(partition_rows)

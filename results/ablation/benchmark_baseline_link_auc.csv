@@ -1,0 +1,4 @@
+variant,link_auc,conf_mae,conf_nll,stance_nll,stance_kl
+2-SAGE-1-ECC,0.862,0.336,0.722,0.603,0.595
+3-GCN,0.762,,,,
+3-SAGE,0.883,,,,

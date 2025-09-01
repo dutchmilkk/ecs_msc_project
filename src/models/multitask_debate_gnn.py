@@ -587,41 +587,33 @@ class MultitaskDebateGNN(nn.Module):
 # ============================================================================
 def train_gnn_live(all_graphs, model_args, train_args, model_class=MultitaskDebateGNN, live_plot=True):
     """
-    Train MultitaskDebateGNN with cross-validation across subreddits:
-    
-    - Cross-validation: Each subreddit serves as test set once
-    - Three-way split: Train/validation/test using different subreddits
-    - Live monitoring: Real-time loss plotting during training
-    - Early stopping: Based on validation loss with patience
-    - Temporal regularization: Consistency across time for sequential graphs
-    - Class balancing: Automatic pos_weight and net (dis)agreement weight computation
-    
-    Training Strategy:
-    - For each subreddit as test set:
-      1. Select another random subreddit as validation
-      2. Use remaining subreddits for training
-      3. Train model with early stopping on validation loss
-      4. Evaluate final model on held-out test subreddit
-    
-    Edge Attributes:
-    - Confidence: Computed from annotator agreement fraction × individual kappa scores
-    - Net (dis)agreement vector: [disagree, neutral, agree] weighted by stance confidence scores (sum to 1)
-    
+    Train MultitaskDebateGNN with cross-validation across subreddits.
+
+    Updated Training Strategy:
+    - For each fold, one subreddit is held out as the test set.
+    - Another subreddit is held out as the validation set.
+    - The validation set uses only the latest k timesteps (val_n_last or val_pct_last).
+    - A temporal gap of g timesteps (val_gap_n) is skipped between training and validation to prevent temporal leakage.
+    - Training uses all other subreddits plus early timesteps from the validation subreddit (excluding the gap and validation timesteps).
+    - Early stopping is based on validation loss.
+    - Final evaluation is performed on the held-out test subreddit.
+
     Args:
         all_graphs (list): List of PyTorch Geometric Data objects with subreddit_id and local_timestep
         model_args (dict): Arguments for model initialization
         train_args (dict): Training configuration including lr, epochs, patience, etc.
         model_class (type, optional): Model class to instantiate. Defaults to MultitaskDebateGNN.
-    
+
     Returns:
         tuple: (final_model, test_results_dict, training_history_dict)
         - final_model: Trained model from last fold
         - test_results_dict: Per-subreddit test metrics
         - training_history_dict: Per-subreddit training/validation loss curves
-    
+
     Note:
         Graphs represent directed user-user interactions from aggregated reply relationships.
         Nodes are users, edges are aggregated reply interactions with confidence and net (dis)agreement attributes.
+        The temporal gap (val_gap_n) is used to separate training and validation periods for more robust evaluation.
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
