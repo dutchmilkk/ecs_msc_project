@@ -470,7 +470,8 @@ def plot_snapshot_analysis(processed_dict_single_subreddit, timestep, evolution_
         debgnn_comm_eci = data['debgnn_comm_eci'][list(unique_communities).index(comm_id)]
         print(f"  Community {comm_id}: {len(nodes)} nodes, EchoGAE ECI: {echo_comm_eci:.4f}, DebateGNN ECI: {debgnn_comm_eci:.4f}")
 
-
+    return fig
+    
 def analyze_embedding_community_alignment(embeddings, comm_labels, comm_nodes, method_name):
     """Check how well embeddings align with community structure"""
     try:
