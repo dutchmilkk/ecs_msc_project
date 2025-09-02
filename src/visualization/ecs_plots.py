@@ -10,50 +10,99 @@ class ECSPlotter:
     def __init__(self, output_dir: str = 'results/ecs'):
         self.output_dir = output_dir
     
-    def plot_method_comparison(self, ecs_df: pd.DataFrame, processed_dict: Dict, save: bool = False):
+    def plot_method_comparison(self, ecs_df: pd.DataFrame, processed_dict: Dict, evolution_data: Optional[Dict] = None, 
+                             target_subreddit_id: Optional[int] = None, save: bool = False):
         """Generate Figure 1: Method Comparison (EchoGAE vs DebateGNN)"""
         print("Generating Figure 1: Method Comparison...")
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 6))
         
-        # Figure 1A: Overall ECS comparison
-        methods = ['EchoGAE', 'DebateGNN']
-        echo_mean, echo_std = ecs_df['echogae_eci'].mean(), ecs_df['echogae_eci'].std()
-        gnn_mean, gnn_std = ecs_df['debgnn_eci'].mean(), ecs_df['debgnn_eci'].std()
-        mean_values = [echo_mean, gnn_mean]
-        std_values = [echo_std, gnn_std]
+        # Determine which subreddit to use for Figure 1B
+        if target_subreddit_id is not None and target_subreddit_id in processed_dict:
+            analysis_sub_id = target_subreddit_id
+        else:
+            # Use the subreddit with the most timesteps
+            analysis_sub_id = max(processed_dict.keys(), key=lambda x: len(processed_dict[x]))
+            if target_subreddit_id is not None:
+                print(f"Warning: Subreddit ID {target_subreddit_id} not found, using best: {analysis_sub_id}")
         
-        bars = ax1.bar(methods, mean_values, yerr=std_values, capsize=8, alpha=0.8, 
-                       color=['blue', 'green'], edgecolor='black', linewidth=1)
-        ax1.set_ylabel('Echo Chamber Index', fontsize=12)
-        ax1.set_title('(A) ECS Comparison by Method', fontsize=14, fontweight='bold')
-        ax1.grid(True, alpha=0.3)
-        ax1.set_ylim(0, max(mean_values) * 1.3)
+        processed_dict_single = processed_dict[analysis_sub_id]
+        timesteps_single = sorted(processed_dict_single.keys())
+        subreddit_name = processed_dict_single[timesteps_single[0]]['community_info']['subreddit']
         
-        # Add value labels on bars
-        for i, (bar, mean, std) in enumerate(zip(bars, mean_values, std_values)):
-            ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + std + 0.01,
-                     f'{mean:.3f}±{std:.3f}', ha='center', va='bottom', fontweight='bold')
+        # Collect subreddit names for the subtitle
+        subreddit_names = []
+        legend_added = {"echogae": False, "debgnn": False}
         
-        # Figure 1B: ECS evolution over time by subreddit
+        # Figure 1A: ECS evolution over time by subreddit (all subreddits)
         for sub_id in processed_dict.keys():
-            timesteps = sorted(processed_dict[sub_id].keys())
-            if len(timesteps) > 1:
-                subreddit_name = processed_dict[sub_id][timesteps[0]]['community_info']['subreddit']
-                echogae_values = [processed_dict[sub_id][ts]['echogae_eci'] for ts in timesteps]
-                debgnn_values = [processed_dict[sub_id][ts]['debgnn_eci'] for ts in timesteps]
+            timesteps_sub = sorted(processed_dict[sub_id].keys())
+            if len(timesteps_sub) > 1:
+                subreddit_name_sub = processed_dict[sub_id][timesteps_sub[0]]['community_info']['subreddit']
+                subreddit_names.append(f"r/{subreddit_name_sub}")
+                echogae_values = [processed_dict[sub_id][ts]['echogae_eci'] for ts in timesteps_sub]
+                debgnn_values = [processed_dict[sub_id][ts]['debgnn_eci'] for ts in timesteps_sub]
                 
-                ax2.plot(timesteps, echogae_values, 'o-', alpha=0.8, linewidth=2,
-                        label=f'{subreddit_name} (EchoGAE)', color='blue')
-                ax2.plot(timesteps, debgnn_values, 's--', alpha=0.8, linewidth=2,
-                        label=f'{subreddit_name} (DebateGNN)', color='green')
+                # Plot EchoGAE line
+                echogae_label = 'EchoGAE' if not legend_added["echogae"] else None
+                ax1.plot(timesteps_sub, echogae_values, 'o-', alpha=0.8, linewidth=2,
+                        label=echogae_label, color='blue')
+                legend_added["echogae"] = True
+                
+                # Plot DebateGNN line
+                debgnn_label = 'DebateGNN' if not legend_added["debgnn"] else None
+                ax1.plot(timesteps_sub, debgnn_values, 's--', alpha=0.8, linewidth=2,
+                        label=debgnn_label, color='green')
+                legend_added["debgnn"] = True
         
-        ax2.set_xlabel('Timestep', fontsize=12)
-        ax2.set_ylabel('Echo Chamber Index', fontsize=12)
-        ax2.set_title('(B) ECS Evolution Over Time', fontsize=14, fontweight='bold')
-        ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=10)
+        # Create subtitle with subreddit names
+        subreddits_text = ", ".join(subreddit_names)
+        
+        ax1.set_xlabel('Timestep', fontsize=12, labelpad=10)
+        ax1.set_ylabel('Echo Chamber Index', fontsize=12, labelpad=10)
+        ax1.set_title(f'(A) ECS Evolution Over Time (All Subreddits)\n{subreddits_text}', fontsize=14, fontweight='bold')
+        ax1.legend(fontsize=12)
+        ax1.grid(True, alpha=0.3)
+        
+        # Figure 1B: ECS Values Over Time with Jaccard (from target subreddit)
+        echogae_ecs_values = [processed_dict_single[ts]['echogae_eci'] for ts in timesteps_single]
+        debgnn_ecs_values = [processed_dict_single[ts]['debgnn_eci'] for ts in timesteps_single]
+        
+        timestep_labels = [f"T{ts}" for ts in timesteps_single]
+        ax2.plot(timesteps_single, echogae_ecs_values, linewidth=2.5, markersize=8, 
+                 label='EchoGAE ECS', color='blue', alpha=0.8, marker='o')
+        ax2.plot(timesteps_single, debgnn_ecs_values, linewidth=2.5, markersize=8, 
+                 label='DebateGNN ECS', color='green', alpha=0.8, marker='s')
+        
+        # Add secondary y-axis for Total Jaccard if evolution data is available
+        if evolution_data and analysis_sub_id in evolution_data:
+            ax2_jaccard = ax2.twinx()
+            total_jaccards = evolution_data[analysis_sub_id]['total_jaccards']
+            
+            # Plot Jaccard at midpoints between timesteps
+            jaccard_x_positions = [(timesteps_single[i] + timesteps_single[i+1])/2 for i in range(len(timesteps_single)-1)]
+            ax2_jaccard.plot(jaccard_x_positions, total_jaccards, linewidth=2.5, markersize=8,
+                             label='Total Jaccard', color='purple', alpha=0.8, marker='^', linestyle='--')
+            
+            ax2_jaccard.set_ylabel('Total Jaccard Similarity', color='purple', labelpad=10, fontsize=12)
+            
+            # Combine legends from both axes
+            lines1, labels1 = ax2.get_legend_handles_labels()
+            lines2, labels2 = ax2_jaccard.get_legend_handles_labels()
+            ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+        else:
+            ax2.legend()
+        
+        ax2.set_xlabel('Timesteps', fontsize=12, labelpad=10)
+        # ax2.set_ylabel('Echo Chamber Index', fontsize=12)
+        ax2.set_title(f'(B) ECS Evolution Over Time\nr/{subreddit_name}', fontsize=14, fontweight='bold')
+        ax2.set_xticks(timesteps_single)
+        ax2.set_xticklabels(timestep_labels, rotation=45)
         ax2.grid(True, alpha=0.3)
         
+        # Increase padding between subplots
+        plt.subplots_adjust(wspace=0.8)
         plt.tight_layout()
+        
         if save:
             plt.savefig(f'{self.output_dir}/figure1_method_comparison.png', 
                        dpi=300, bbox_inches='tight')

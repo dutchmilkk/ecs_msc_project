@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Optional
 
-def plot_user_migration_stats(evolution_data, subreddit_name=None, figsize=(15, 8), save_figures=False, output_dir='results'):
+def plot_user_migration_stats(evolution_data, subreddit_name=None, figsize=(12, 5), save_figures=False, output_dir='results'):
     """Create bar/line plots to visualize user migration statistics over time for a single subreddit."""
     import matplotlib.pyplot as plt
     
@@ -31,17 +31,15 @@ def plot_user_migration_stats(evolution_data, subreddit_name=None, figsize=(15, 
     transitions = [f"T{t1}→T{t2}" for t1, t2 in ts_pairs]
     
     # Extract migration statistics
-    total_t1 = [stats['total_t1'] for stats in migration_stats]
-    total_t2 = [stats['total_t2'] for stats in migration_stats]
     retained = [stats['retained'] for stats in migration_stats]
     new_users = [stats['new'] for stats in migration_stats]
     lost_users = [stats['lost'] for stats in migration_stats]
     retention_rates = [stats['retention_rate'] * 100 for stats in migration_stats]
     growth_rates = [stats['growth_rate'] * 100 for stats in migration_stats]
     
-    # Create subplots
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=figsize)
-    fig.suptitle(f'User Migration Statistics Over Time{f" - {subreddit_name}" if subreddit_name else ""}', 
+    # Create subplots (1x2 layout)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+    fig.suptitle(f'User Migration Statistics Over Time{f" - r/{subreddit_name}" if subreddit_name else "?"}', 
                  fontsize=14, fontweight='bold')
     
     # Plot 1: Absolute User Counts (Stacked Bar)
@@ -51,55 +49,27 @@ def plot_user_migration_stats(evolution_data, subreddit_name=None, figsize=(15, 
     ax1.bar(x, new_users, bottom=retained, label='New Users', alpha=0.8, color='blue')
     ax1.bar(x, lost_users, bottom=[r + n for r, n in zip(retained, new_users)], 
             label='Lost Users', alpha=0.8, color='red')
-    
-    ax1.set_xlabel('Time Transitions')
-    ax1.set_ylabel('Number of Users')
-    ax1.set_title('User Counts by Category')
+
+    ax1.set_xlabel('Time Transitions', fontsize=9, labelpad=10)
+    ax1.set_ylabel('Number of Users', fontsize=9)
+    ax1.set_title('(A) User Counts by Category', fontweight='bold', fontsize=12)
     ax1.set_xticks(x)
-    ax1.set_xticklabels(transitions, rotation=45)
+    ax1.set_xticklabels(transitions, rotation=45, fontsize=8)
     ax1.legend()
     ax1.grid(True, alpha=0.3)
     
-    # Plot 2: Total Users Comparison (Line + Bar)
-    width = 0.35
-    ax2.bar(x, total_t1, width, label='Users at T1', alpha=0.7, color='lightcoral')
-    ax2.bar(x + width, total_t2, width, label='Users at T2', alpha=0.7, color='skyblue')
+    # Plot 2: Retention and Growth Rates (Line Plot)
+    ax2.plot(x, retention_rates, 'o-', linewidth=2, markersize=6, label='Retention Rate', color='green')
+    ax2.plot(x, growth_rates, 's-', linewidth=2, markersize=6, label='Growth Rate', color='blue')
     
-    ax2.set_xlabel('Time Transitions')
-    ax2.set_ylabel('Total Users')
-    ax2.set_title('Total User Counts (T1 vs T2)')
-    ax2.set_xticks(x + width/2)
-    ax2.set_xticklabels(transitions, rotation=45)
+    ax2.set_xlabel('Time Transitions', fontsize=9, labelpad=10)
+    ax2.set_ylabel('Rate (%)', fontsize=9)
+    ax2.set_title('(B) Retention and Growth Rates', fontweight='bold', fontsize=12)
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(transitions, rotation=45, fontsize=8)
     ax2.legend()
     ax2.grid(True, alpha=0.3)
-    
-    # Plot 3: Retention and Growth Rates (Line Plot)
-    ax3.plot(x, retention_rates, 'o-', linewidth=2, markersize=6, label='Retention Rate', color='green')
-    ax3.plot(x, growth_rates, 's-', linewidth=2, markersize=6, label='Growth Rate', color='blue')
-    
-    ax3.set_xlabel('Time Transitions')
-    ax3.set_ylabel('Rate (%)')
-    ax3.set_title('Retention and Growth Rates')
-    ax3.set_xticks(x)
-    ax3.set_xticklabels(transitions, rotation=45)
-    ax3.legend()
-    ax3.grid(True, alpha=0.3)
-    ax3.axhline(y=0, color='red', linestyle='--', alpha=0.5)
-    
-    # Plot 4: Migration Flow (Stacked Percentage)
-    retained_pct = [r/t1 * 100 for r, t1 in zip(retained, total_t1)]
-    lost_pct = [l/t1 * 100 for l, t1 in zip(lost_users, total_t1)]
-    
-    ax4.bar(x, retained_pct, label='Retained (%T1)', alpha=0.8, color='green')
-    ax4.bar(x, lost_pct, bottom=retained_pct, label='Lost (%T1)', alpha=0.8, color='red')
-    
-    ax4.set_xlabel('Time Transitions')
-    ax4.set_ylabel('Percentage of T1 Users')
-    ax4.set_title('Migration Flow Percentages')
-    ax4.set_xticks(x)
-    ax4.set_xticklabels(transitions, rotation=45)
-    ax4.legend()
-    ax4.grid(True, alpha=0.3)
+    ax2.axhline(y=0, color='red', linestyle='--', alpha=0.5)
     
     plt.tight_layout()
     
@@ -145,15 +115,31 @@ def plot_combined_migration_and_ecs(evolution_data, processed_dict_single_subred
     # Plot 1: ECS Values Over Time (Line Plot)
     timestep_labels = [f"T{ts}" for ts in timesteps]
     ax1.plot(timesteps, echogae_ecs_values, linewidth=2.5, markersize=8, 
-             label='EchoGAE ECS', color='blue', alpha=0.8)
+             label='EchoGAE ECS', color='blue', alpha=0.8, marker='o')
     ax1.plot(timesteps, debgnn_ecs_values, linewidth=2.5, markersize=8, 
-             label='DebateGNN ECS', color='green', alpha=0.8)
+             label='DebateGNN ECS', color='green', alpha=0.8, marker='s')
+    
+    # Add secondary y-axis for Total Jaccard
+    ax1_jaccard = ax1.twinx()
+    
+    # For Jaccard, we need to map it to transitions (which are between timesteps)
+    # We'll plot it at the midpoint between consecutive timesteps
+    jaccard_x_positions = [(timesteps[i] + timesteps[i+1])/2 for i in range(len(timesteps)-1)]
+    ax1_jaccard.plot(jaccard_x_positions, total_jaccards, linewidth=2.5, markersize=8,
+                     label='Total Jaccard', color='purple', alpha=0.8, marker='^', linestyle='--')
+    
     ax1.set_xlabel('Timesteps')
-    ax1.set_ylabel('Echo Chamber Index')
-    ax1.set_title('ECS Values Over Time')
+    ax1.set_ylabel('Echo Chamber Index', color='black')
+    ax1_jaccard.set_ylabel('Total Jaccard Similarity', color='purple')
+    ax1.set_title('ECS Values Over Time with Community Stability')
     ax1.set_xticks(timesteps)
     ax1.set_xticklabels(timestep_labels, rotation=45)
-    ax1.legend()
+    
+    # Combine legends from both axes
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax1_jaccard.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+    
     ax1.grid(True, alpha=0.3)
 
     # Plot 2: ECS Changes vs Jaccard Similarity (Scatter + Line)

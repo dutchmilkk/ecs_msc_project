@@ -104,8 +104,8 @@ class ECSAnalyzer:
                   key=lambda x: len(self.processed_dict[x]))
     
     def generate_result_figures(self, results: Dict, target_subreddit_id: Optional[int] = None, 
-                          save_figures: bool = True, embedding_timestep: Optional[int] = None, 
-                          plot_all_embedding_timesteps: bool = False, color_mode: str = "lineage"):
+                      save_figures: bool = True, embedding_timestep: Optional[int] = None, 
+                      plot_all_embedding_timesteps: bool = False, color_mode: str = "lineage"):
         """
         Generate all figures needed for the results
         """
@@ -123,25 +123,39 @@ class ECSAnalyzer:
             else:
                 print(f"Using best subreddit ID: {analysis_sub_id}")
         
-        # Figure 1: Method Comparison
+        # Figure 1: Method Comparison - Updated to pass evolution data and target subreddit ID
         self.plotter.plot_method_comparison(
             results['ecs_dataframe'], 
             results['processed_dict'],
+            evolution_data=results['evolution_data'],
+            target_subreddit_id=analysis_sub_id,
             save=save_figures
         )
         
-        # Figure 2: Community Evolution (specified subreddit)
+        # # Figure 2: Community Evolution (specified subreddit)
+        # if analysis_sub_id in results['evolution_data']:
+        #     evolution_data = results['evolution_data'][analysis_sub_id]
+        #     if isinstance(evolution_data, dict):
+        #         self.plotter.plot_community_evolution(
+        #             evolution_data,
+        #             results['processed_dict'][analysis_sub_id],
+        #             save=save_figures
+        #         )
+        #     else:
+        #         print(f"Warning: Invalid evolution_data type {type(evolution_data)}, skipping community evolution plot")
+        
+        # Figure 5: User Migration Statistics
         if analysis_sub_id in results['evolution_data']:
             evolution_data = results['evolution_data'][analysis_sub_id]
             if isinstance(evolution_data, dict):
-                self.plotter.plot_community_evolution(
+                self.plotter.plot_user_migration_stats(
                     evolution_data,
                     results['processed_dict'][analysis_sub_id],
                     save=save_figures
                 )
             else:
-                print(f"Warning: Invalid evolution_data type {type(evolution_data)}, skipping community evolution plot")
-        
+                print(f"Warning: Invalid evolution_data type {type(evolution_data)}, skipping migration stats plot")
+
         # Figure 3: Embedding Comparison - Individual plots for each timestep or single plot
         if plot_all_embedding_timesteps:
             self._plot_all_timesteps_individually(
@@ -161,33 +175,22 @@ class ECSAnalyzer:
                 save=save_figures
             )
         
-        # Figure 4: Community Flow Sankey
-        if analysis_sub_id in results['evolution_data']:
-            evolution_data = results['evolution_data'][analysis_sub_id]
-            print(f"Debug: evolution_data type = {type(evolution_data)}")
-            print(f"Debug: Passing color_mode '{color_mode}' to Sankey plot")
-            
-            if isinstance(evolution_data, dict):
-                self.plotter.plot_community_flow(
-                    evolution_data,
-                    results['processed_dict'][analysis_sub_id],
-                    save=save_figures,
-                    color_mode=color_mode
-                )
-            else:
-                print(f"Warning: Invalid evolution_data type {type(evolution_data)}, skipping community flow plot")
         
-        # Figure 5: User Migration Statistics
-        if analysis_sub_id in results['evolution_data']:
-            evolution_data = results['evolution_data'][analysis_sub_id]
-            if isinstance(evolution_data, dict):
-                self.plotter.plot_user_migration_stats(
-                    evolution_data,
-                    results['processed_dict'][analysis_sub_id],
-                    save=save_figures
-                )
-            else:
-                print(f"Warning: Invalid evolution_data type {type(evolution_data)}, skipping migration stats plot")
+        # Figure 4: Community Flow Sankey
+        # if analysis_sub_id in results['evolution_data']:
+        #     evolution_data = results['evolution_data'][analysis_sub_id]
+        #     print(f"Debug: evolution_data type = {type(evolution_data)}")
+        #     print(f"Debug: Passing color_mode '{color_mode}' to Sankey plot")
+            
+        #     if isinstance(evolution_data, dict):
+        #         self.plotter.plot_community_flow(
+        #             evolution_data,
+        #             results['processed_dict'][analysis_sub_id],
+        #             save=save_figures,
+        #             color_mode=color_mode
+        #         )
+        #     else:
+        #         print(f"Warning: Invalid evolution_data type {type(evolution_data)}, skipping community flow plot")
         
         # Figure 6: Network Evolution Grid - Now using the plotter method
         self.plotter.plot_network_evolution_grid(
@@ -231,14 +234,23 @@ class ECSAnalyzer:
         # First aggregate to get both mean and std
         summary_stats = results['ecs_dataframe'].groupby('subreddit').agg({
             'timestep': 'count',
+            'modularity': ['mean', 'std'],
             'echogae_eci': ['mean', 'std'],
             'debgnn_eci': ['mean', 'std'],
             'delta_echogae_eci': ['mean', 'std'],
             'delta_debgnn_eci': ['mean', 'std'],
-            'modularity': ['mean', 'std'],
             'echogae_silhouette': ['mean', 'std'],
             'debgnn_silhouette': ['mean', 'std']
         })
+        
+        # Calculate overall statistics (across all subreddits) - avoid MultiIndex
+        overall_timesteps = len(results['ecs_dataframe'])
+        overall_means = results['ecs_dataframe'][['echogae_eci', 'modularity', 'debgnn_eci', 'delta_echogae_eci', 
+                                                'delta_debgnn_eci','echogae_silhouette', 
+                                                'debgnn_silhouette']].mean()
+        overall_stds = results['ecs_dataframe'][['echogae_eci', 'modularity', 'debgnn_eci', 'delta_echogae_eci', 
+                                               'delta_debgnn_eci', 'echogae_silhouette', 
+                                               'debgnn_silhouette']].std()
         
         # Create new DataFrame with mean ± std format
         summary_table = pd.DataFrame(index=summary_stats.index)
@@ -248,8 +260,7 @@ class ECSAnalyzer:
         
         # Add mean ± std columns
         columns_to_format = [
-            'echogae_eci', 'debgnn_eci', 'delta_echogae_eci', 'delta_debgnn_eci',
-            'modularity', 'echogae_silhouette', 'debgnn_silhouette'
+             'modularity', 'echogae_eci', 'debgnn_eci', 'delta_echogae_eci', 'delta_debgnn_eci', 'echogae_silhouette', 'debgnn_silhouette'
         ]
         
         for col in columns_to_format:
@@ -257,6 +268,18 @@ class ECSAnalyzer:
             std_vals = summary_stats[(col, 'std')]
             # Format as "mean ± std" with 3 decimal places
             summary_table[col] = mean_vals.round(3).astype(str) + ' ± ' + std_vals.round(3).astype(str)
+        
+        # Add overall row
+        overall_row = pd.DataFrame(index=['ALL'])
+        overall_row['n_timesteps'] = overall_timesteps
+        
+        for col in columns_to_format:
+            mean_val = overall_means[col]
+            std_val = overall_stds[col]
+            overall_row[col] = f"{mean_val:.3f} ± {std_val:.3f}"
+        
+        # Concatenate the overall row to the summary table
+        summary_table = pd.concat([summary_table, overall_row])
         
         return summary_table
     

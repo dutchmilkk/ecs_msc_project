@@ -4,8 +4,11 @@ from matplotlib.patches import Patch
 import networkx as nx
 import plotly.graph_objects as go
 from typing import Dict, Optional, List
+import warnings
 
 from src.utils.community_colors import build_lineage_colors, build_unique_node_colors
+
+warnings.filterwarnings("ignore", message="n_jobs value .* overridden to 1 by setting random_state.*")
 
 def plot_snapshot_analysis(processed_dict_single_subreddit, timestep, evolution_data=None, 
                           subreddit_name=None, figsize=(20, 8), 
@@ -51,7 +54,7 @@ def plot_snapshot_analysis(processed_dict_single_subreddit, timestep, evolution_
     overlap = nx_nodes_set.intersection(partition_keys_set)
     print(f"  Overlap between nx_nodes and partition keys: {len(overlap)}/{len(nx_nodes_set)}")
     
-    # CREATE COLOR MAP based on color_mode
+    # Create color map based on color_mode
     unique_communities = sorted(comm_nodes.keys())
     
     if color_mode == "lineage" and evolution_data is not None and build_lineage_colors is not None:
@@ -99,9 +102,18 @@ def plot_snapshot_analysis(processed_dict_single_subreddit, timestep, evolution_
     
     # Create subplots
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=figsize)
-    title_suffix = f" - {subreddit_name} T{timestep}" if subreddit_name else f" - T{timestep}"
-    fig.suptitle(f'Snapshot Analysis{title_suffix}', fontsize=16, fontweight='bold')
+    title_suffix = f"r/{subreddit_name} - T{timestep}" if subreddit_name else f"? - T{timestep}"
     
+    # Add network statistics to the title
+    n_nodes = nx_graph.number_of_nodes()
+    n_edges = nx_graph.number_of_edges()
+    modularity = community_info['modularity']
+    
+    fig.suptitle(f'Snapshot Analysis: {title_suffix}\n'
+                 f'Nodes: {n_nodes} | Edges: {n_edges} | Modularity: {modularity:.3f}', 
+                 fontsize=16, fontweight='bold', y=0.99)
+    plt.subplots_adjust(top=0.75)  # Adjust subplot positions to make room for larger title
+
     # Plot 1: EchoGAE UMAP
     if echogae_embeddings is not None and echogae_embeddings.shape[0] > 0:
         try:
@@ -196,19 +208,19 @@ def plot_snapshot_analysis(processed_dict_single_subreddit, timestep, evolution_
             scatter1 = ax1.scatter(echo_embedding[:, 0], echo_embedding[:, 1], 
                                  c=node_colors, s=80, alpha=0.7, 
                                  edgecolors='black', linewidth=0.5)
-            ax1.set_title(f'EchoGAE Embeddings (UMAP)\nECI: {data["echogae_eci"]:.4f}')
-            ax1.set_xlabel('UMAP 1')
-            ax1.set_ylabel('UMAP 2')
+            ax1.set_title(f'(A) EchoGAE Embeddings (UMAP)\nECI: {data["echogae_eci"]:.4f}', fontweight='bold', fontsize=12)
+            ax1.set_xlabel('UMAP 1', fontsize=12, labelpad=10)
+            ax1.set_ylabel('UMAP 2', fontsize=12)
             ax1.grid(True, alpha=0.3)
             
         except ImportError as e:
             print(f"UMAP not available: {e}")
             ax1.text(0.5, 0.5, 'UMAP not available\nInstall: pip install umap-learn', 
                     ha='center', va='center', transform=ax1.transAxes)
-            ax1.set_title('EchoGAE Embeddings (UMAP)')
+            ax1.set_title('(A) EchoGAE Embeddings (UMAP)')
     else:
         ax1.text(0.5, 0.5, 'No EchoGAE embeddings', ha='center', va='center', transform=ax1.transAxes)
-        ax1.set_title('EchoGAE Embeddings (UMAP)')
+        ax1.set_title('(A) EchoGAE Embeddings (UMAP)', fontweight='bold', fontsize=12)
 
     # Plot 2: DebateGNN UMAP
     if gnn_embeddings is not None and gnn_embeddings.shape[0] > 0:
@@ -299,19 +311,19 @@ def plot_snapshot_analysis(processed_dict_single_subreddit, timestep, evolution_
             scatter2 = ax2.scatter(gnn_embedding[:, 0], gnn_embedding[:, 1], 
                                  c=node_colors, s=80, alpha=0.7, 
                                  edgecolors='black', linewidth=0.5)
-            ax2.set_title(f'DebateGNN Embeddings (UMAP)\nECI: {data["debgnn_eci"]:.4f}')
-            ax2.set_xlabel('UMAP 1')
-            ax2.set_ylabel('UMAP 2')
+            ax2.set_title(f'(B) DebateGNN Embeddings (UMAP)\nECI: {data["debgnn_eci"]:.4f}', fontweight='bold', fontsize=12)
+            ax2.set_xlabel('UMAP 1', fontsize=12, labelpad=10)
+            ax2.set_ylabel('UMAP 2', fontsize=12)
             ax2.grid(True, alpha=0.3)
             
         except ImportError as e:
             print(f"UMAP not available: {e}")
             ax2.text(0.5, 0.5, 'UMAP not available\nInstall: pip install umap-learn', 
                     ha='center', va='center', transform=ax2.transAxes)
-            ax2.set_title('DebateGNN Embeddings (UMAP)')
+            ax2.set_title('(B) DebateGNN Embeddings (UMAP)')
     else:
         ax2.text(0.5, 0.5, 'No DebateGNN embeddings', ha='center', va='center', transform=ax2.transAxes)
-        ax2.set_title('DebateGNN Embeddings (UMAP)')
+        ax2.set_title('(B) DebateGNN Embeddings (UMAP)', fontweight='bold', fontsize=12)
     
     # Plot 3: NetworkX Graph
     if nx_graph.number_of_nodes() > 0:
@@ -422,28 +434,27 @@ def plot_snapshot_analysis(processed_dict_single_subreddit, timestep, evolution_
             ax3.text(0.5, 0.5, f'Graph too large\n({nx_graph.number_of_nodes()} nodes)\nfor visualization', 
                     ha='center', va='center', transform=ax3.transAxes, fontsize=12)
         
-        boundary_info = " (with boundaries)" if draw_boundaries else " (no boundaries)"
-        ax3.set_title(f'Network Graph (Community Layout){boundary_info}\n{nx_graph.number_of_nodes()} nodes, {nx_graph.number_of_edges()} edges')
+        boundary_info = " (with community boundaries)" if draw_boundaries else " (no community boundaries)"
+        ax3.set_title(f'(C) Directed Network Graph\n{boundary_info}', fontweight='bold', fontsize=12)
         ax3.axis('off')
     else:
         ax3.text(0.5, 0.5, 'Empty graph', ha='center', va='center', transform=ax3.transAxes)
-        ax3.set_title('Network Graph')
+        ax3.set_title('(C) Directed Network Graph', fontweight='bold', fontsize=12)
         ax3.axis('off')
     
     # Create legend for communities using chosen colors
     legend_elements = [Patch(facecolor=color, edgecolor='black', label=f'Community {comm_id} ({len(comm_nodes[comm_id])})') 
                       for comm_id, color in comm_color_map.items()]
     
-    fig.legend(handles=legend_elements, loc='center', bbox_to_anchor=(0.5, -0.02), 
-              ncol=min(len(unique_communities), 6), title=color_info)
+    fig.legend(handles=legend_elements, loc='center', bbox_to_anchor=(0.5, -0.02), ncol=min(len(unique_communities), 6), title=color_info)
     
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.15)  # Make room for legend
+    plt.subplots_adjust(bottom=0.1)  # Make room for legend
     plt.show()
     
     # Print summary
     print(f"\n{'='*60}")
-    print(f"SNAPSHOT SUMMARY{title_suffix}")
+    print(f"SNAPSHOT SUMMARY {title_suffix}")
     print(f"{'='*60}")
     print(f"Communities: {len(unique_communities)}")
     print(f"Nodes: {nx_graph.number_of_nodes()}")
@@ -592,8 +603,9 @@ def plot_network_evolution_grid(processed_dict_single_subreddit, evolution_data=
     else:
         axes = axes.flatten()
     
-    fig.suptitle(f'Network Evolution Over Time - r/{subreddit_name}', 
+    fig.suptitle(f'Network Evolution Over Time\nr/{subreddit_name}', 
                 fontsize=16, fontweight='bold', y=0.98)
+    plt.subplots_adjust(top=0.75)
     
     # Get colors for all timesteps using the helper function
     node_colors = _get_node_colors(processed_dict_single_subreddit, evolution_data, color_mode)
