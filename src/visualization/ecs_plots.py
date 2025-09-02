@@ -13,7 +13,6 @@ class ECSPlotter:
     def plot_method_comparison(self, ecs_df: pd.DataFrame, processed_dict: Dict, evolution_data: Optional[Dict] = None, 
                              target_subreddit_id: Optional[int] = None, save: bool = False):
         """Generate Figure 1: Method Comparison (EchoGAE vs DebateGNN)"""
-        print("Generating Figure 1: Method Comparison...")
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 6))
         
         # Determine which subreddit to use for Figure 1B
@@ -96,7 +95,7 @@ class ECSPlotter:
         # ax2.set_ylabel('Echo Chamber Index', fontsize=12)
         ax2.set_title(f'(B) ECS Evolution Over Time\nr/{subreddit_name}', fontsize=14, fontweight='bold')
         ax2.set_xticks(timesteps_single)
-        ax2.set_xticklabels(timestep_labels, rotation=45)
+        ax2.set_xticklabels(timestep_labels)
         ax2.grid(True, alpha=0.3)
         
         # Increase padding between subplots
@@ -104,7 +103,7 @@ class ECSPlotter:
         plt.tight_layout()
         
         if save:
-            plt.savefig(f'{self.output_dir}/figure1_method_comparison.png', 
+            plt.savefig(f'{self.output_dir}/figure1_ecs_over_time.png', 
                        dpi=300, bbox_inches='tight')
         plt.show()
     
@@ -202,7 +201,7 @@ class ECSPlotter:
             )
             
             if save:
-                plt.savefig(f'{self.output_dir}/figure3_embedding_comparison_t{target_timestep}.png', 
+                plt.savefig(f'{self.output_dir}/figure3_embeddings_umap_T{target_timestep}.png', 
                            dpi=300, bbox_inches='tight')
 
     def plot_community_flow(self, evolution_data: Dict, processed_dict_single: Dict, color_mode: str = "lineage", save: bool = False):

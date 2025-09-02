@@ -327,6 +327,9 @@ class ECSAnalyzer:
             print(f"   + Average growth rate: {avg_growth:.1%}")
         else:
             print(f"\nNo evolution data available for subreddit ID {analysis_sub_id}")
+        
+        print("="*80)
+        print()
 
     def run_complete_analysis_with_figures(
         self,
@@ -359,13 +362,23 @@ class ECSAnalyzer:
         # Run the standard analysis pipeline
         results = self.run_complete_analysis(processed_dict, ecs_df)
         
+        # Generate and save summary table
+        summary_table = self.create_result_summary(results)
+        display(summary_table)
+        if save_figures:
+            summary_table.to_csv(f'{self.output_dir}/ecs_summary_table.csv')
+            print(f"\nSummary table saved to: {self.output_dir}/ecs_summary_table.csv")
+        
+        # Print summary for specified subreddit
+        self.print_result_summary(results, target_subreddit_id)
+
         # Print available subreddit options
-        print(f"\nAVAILABLE SUBREDDITS:")
-        for sub_id, sub_data in results['processed_dict'].items():
-            first_ts = list(sub_data.keys())[0]
-            sub_name = sub_data[first_ts]['community_info']['subreddit']
-            num_timesteps = len(sub_data)
-            print(f"   + ID {sub_id}: r/{sub_name} ({num_timesteps} timesteps)")
+        # print(f"\nAVAILABLE SUBREDDITS:")
+        # for sub_id, sub_data in results['processed_dict'].items():
+        #     first_ts = list(sub_data.keys())[0]
+        #     sub_name = sub_data[first_ts]['community_info']['subreddit']
+        #     num_timesteps = len(sub_data)
+        #     print(f"   + ID {sub_id}: r/{sub_name} ({num_timesteps} timesteps)")
         
         # Generate figures for specified subreddit
         self.generate_result_figures(
@@ -376,15 +389,5 @@ class ECSAnalyzer:
             plot_all_embedding_timesteps,
             color_mode=color_mode
         )
-        
-        # Print summary for specified subreddit
-        self.print_result_summary(results, target_subreddit_id)
-    
-        # Generate and save summary table
-        summary_table = self.create_result_summary(results)
-        display(summary_table)
-        if save_figures:
-            summary_table.to_csv(f'{self.output_dir}/ecs_summary_table.csv')
-            print(f"\nSummary table saved to: {self.output_dir}/ecs_summary_table.csv")
         
         return results
