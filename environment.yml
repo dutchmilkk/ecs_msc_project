@@ -1,32 +1,70 @@
 channels:
 - pytorch
+- defaults
 - nvidia
 - conda-forge
-- defaults
 dependencies:
 - ipykernel=6.29.5
 - matplotlib=3.10.0
 - numba=0.61.2
-- numpy<=2.2
 - pandas=2.3.1
 - pip
 - pip:
+  - bleach==6.2.0
+  - bokeh==3.7.3
+  - click==8.2.1
+  - cloudpickle==3.1.1
+  - colorcet==3.1.0
+  - dask==2025.7.0
+  - datashader==0.18.2
+  - fastjsonschema==2.21.2
   - hf-xet==1.1.7
+  - holoviews==1.21.0
   - igraph==0.11.9
+  - imageio==2.37.0
   - ipywidgets==8.1.7
   - joblib==1.5.1
+  - jsonschema==4.25.1
+  - jsonschema-specifications==2025.4.1
   - jupyterlab-widgets==3.0.15
+  - lazy-loader==0.4
   - leidenalg==0.10.2
+  - linkify-it-py==2.0.3
+  - locket==1.0.0
+  - markdown==3.8.2
+  - markdown-it-py==4.0.0
+  - mdit-py-plugins==0.5.0
+  - mdurl==0.1.2
+  - multipledispatch==1.0.0
+  - narwhals==2.3.0
+  - nbformat==5.10.4
+  - panel==1.7.5
+  - param==2.2.1
+  - partd==1.4.2
+  - plotly==6.3.0
+  - pyct==0.5.0
+  - pynndescent==0.5.13
   - python-igraph==0.11.9
+  - pyviz-comms==3.0.6
+  - referencing==0.36.2
+  - rpds-py==0.27.1
+  - scikit-image==0.25.2
   - scikit-learn==1.7.1
   - scipy==1.16.1
+  - seaborn==0.13.2
   - sentence-transformers==5.1.0
+  - sympy==1.13.1
   - texttable==1.7.0
   - threadpoolctl==3.6.0
-  - torch==2.8.0+cu128
+  - tifffile==2025.8.28
+  - toolz==1.0.0
   - torch-geometric==2.6.1
-  - torchvision==0.23.0+cu128
+  - uc-micro-py==1.0.3
+  - umap-learn==0.5.9.post2
+  - webencodings==0.5.1
   - widgetsnbextension==4.0.14
+  - xarray==2025.8.0
+  - xyzservices==2025.4.0
 - python=3.12.11
 - python-dotenv=1.1.0
 - pytorch-cuda=12.4
