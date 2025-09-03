@@ -5,6 +5,7 @@ import networkx as nx
 import plotly.graph_objects as go
 from typing import Dict, Optional, List
 import warnings
+from sklearn.metrics import silhouette_score
 
 from src.utils.community_colors import build_lineage_colors, build_unique_node_colors
 
@@ -119,6 +120,7 @@ def plot_snapshot_analysis(processed_dict_single_subreddit, timestep, evolution_
         try:
             import umap
             import umap.plot
+            from sklearn.metrics import silhouette_score
             
             # Fit UMAP reducer
             reducer_echo = umap.UMAP(
@@ -129,6 +131,14 @@ def plot_snapshot_analysis(processed_dict_single_subreddit, timestep, evolution_
             echo_embedding = reducer_echo.fit_transform(echogae_embeddings)
             # Ensure echo_embedding is a numpy array
             echo_embedding = np.array(echo_embedding)
+            
+            # Calculate silhouette score for EchoGAE embeddings
+            try:
+                echo_silhouette = silhouette_score(echogae_embeddings, comm_labels)
+                echo_sil_text = f" | Sil: {echo_silhouette:.3f}"
+            except Exception as e:
+                print(f"Could not calculate EchoGAE silhouette score: {e}")
+                echo_sil_text = ""
             
             # Create interactive UMAP scatter plot with Plotly
             node_names = list(partition.keys()) if partition else list(nx_graph.nodes()) if nx_graph.number_of_nodes() > 0 else [f"Node_{i}" for i in range(len(comm_labels))]
@@ -206,9 +216,10 @@ def plot_snapshot_analysis(processed_dict_single_subreddit, timestep, evolution_
             
             # Still create the regular matplotlib scatter plot for the subplot
             scatter1 = ax1.scatter(echo_embedding[:, 0], echo_embedding[:, 1], 
-                                 c=node_colors, s=80, alpha=0.7, 
-                                 edgecolors='black', linewidth=0.5)
-            ax1.set_title(f'(A) EchoGAE Embeddings (UMAP)\nECI: {data["echogae_eci"]:.4f}', fontweight='bold', fontsize=12)
+                                c=node_colors, s=80, alpha=0.7, 
+                                edgecolors='black', linewidth=0.5)
+            ax1.set_title(f'(A) EchoGAE Embeddings (UMAP)\nECI: {data["echogae_eci"]:.4f}{echo_sil_text}', 
+                        fontweight='bold', fontsize=12)
             ax1.set_xlabel('UMAP 1', fontsize=12, labelpad=10)
             ax1.set_ylabel('UMAP 2', fontsize=12)
             ax1.grid(True, alpha=0.3)
@@ -227,6 +238,7 @@ def plot_snapshot_analysis(processed_dict_single_subreddit, timestep, evolution_
         try:
             import umap
             import umap.plot
+            from sklearn.metrics import silhouette_score
             
             reducer_gnn = umap.UMAP(
                 n_components=2, 
@@ -236,6 +248,14 @@ def plot_snapshot_analysis(processed_dict_single_subreddit, timestep, evolution_
             gnn_embedding = reducer_gnn.fit_transform(gnn_embeddings)
             # Ensure gnn_embedding is a numpy array for proper indexing
             gnn_embedding = np.array(gnn_embedding)
+            
+            # Calculate silhouette score for DebateGNN embeddings
+            try:
+                gnn_silhouette = silhouette_score(gnn_embeddings, comm_labels)
+                gnn_sil_text = f" | Sil: {gnn_silhouette:.3f}"
+            except Exception as e:
+                print(f"Could not calculate DebateGNN silhouette score: {e}")
+                gnn_sil_text = ""
             
             # Create interactive UMAP scatter plot for DebateGNN
             hover_data_gnn = []
@@ -309,9 +329,10 @@ def plot_snapshot_analysis(processed_dict_single_subreddit, timestep, evolution_
             
             # Regular matplotlib scatter plot
             scatter2 = ax2.scatter(gnn_embedding[:, 0], gnn_embedding[:, 1], 
-                                 c=node_colors, s=80, alpha=0.7, 
-                                 edgecolors='black', linewidth=0.5)
-            ax2.set_title(f'(B) DebateGNN Embeddings (UMAP)\nECI: {data["debgnn_eci"]:.4f}', fontweight='bold', fontsize=12)
+                                c=node_colors, s=80, alpha=0.7, 
+                                edgecolors='black', linewidth=0.5)
+            ax2.set_title(f'(B) DebateGNN Embeddings (UMAP)\nECI: {data["debgnn_eci"]:.4f}{gnn_sil_text}', 
+                        fontweight='bold', fontsize=12)
             ax2.set_xlabel('UMAP 1', fontsize=12, labelpad=10)
             ax2.set_ylabel('UMAP 2', fontsize=12)
             ax2.grid(True, alpha=0.3)

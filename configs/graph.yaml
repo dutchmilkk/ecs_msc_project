@@ -3,7 +3,7 @@ construction:
   directed: true
   allow_self_loops: false
   use_wcc: 
-    mode: "min_edges"     # or "largest", "min_edges", "none"
+    mode: "min_edges"     # or "largest", "min_edges", "none", "topk_coverage"
     coverage_threshold: 0.75  # for topk_coverage: keep components until X% of edges retained
     min_edges: 3              # for min_edges: drop components smaller than this
 
