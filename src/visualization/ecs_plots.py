@@ -171,7 +171,7 @@ class ECSPlotter:
                 )
                 
                 if save:
-                    plt.savefig(f'{self.output_dir}/figure3_embedding_comparison_t{ts}.png', 
+                    plt.savefig(f'{self.output_dir}/figure3_embeddings_umap_T{ts}.png', 
                                dpi=300, bbox_inches='tight')
                     plt.close()  # Close the figure to free memory
                     
